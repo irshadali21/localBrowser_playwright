@@ -2,7 +2,7 @@
 const { chromium } = require('playwright');
 const path = require('path');
 
-const userDataDir = path.resolve(__dirname, '/profile-data');
+const userDataDir = path.join(process.cwd(), 'profile-data');
 
 async function configBrowser() {
   return await chromium.launchPersistentContext(userDataDir, {
