@@ -74,7 +74,7 @@ async function sendChatGPT(prompt) {
   }
 
   const input = chatGPTPage.locator('div[contenteditable="true"][id="prompt-textarea"]');
-  await input.waitFor({ timeout: 10000 });
+  await input.waitFor({ timeout: 1000 });
   await input.click(); // focus required
   await input.press('Control+A');
   await input.press('Backspace');
@@ -82,7 +82,7 @@ async function sendChatGPT(prompt) {
   if (prompt.includes('\n')) {
     const lines = prompt.split('\n');
     for (const line of lines) {
-      await input.type(line, { delay: 10 });
+      await input.type(line, { delay: 100 });
       await chatGPTPage.keyboard.press('Shift+Enter');
     }
   } else {
@@ -91,10 +91,8 @@ async function sendChatGPT(prompt) {
 
   await chatGPTPage.keyboard.press('Enter'); // send once
 
-  const response = await chatGPTPage.evaluate(() => {
-    const turns = Array.from(document.querySelectorAll('div.markdown.prose'));
-    return turns.at(-1)?.innerText?.trim() || 'No response found.';
-  });
+  const response = await waitForStableResponse(chatGPTPage, 'div.markdown.prose');
+
 
   return response;
 }
@@ -115,6 +113,33 @@ async function dismissGeminiPopup(page) {
     // silently ignore
   }
 }
+
+async function waitForStableResponse(page, selector, timeout = 40000) {
+  const start = Date.now();
+  let previous = '';
+  let stableCounter = 0;
+
+  while (Date.now() - start < timeout) {
+    const current = await page.evaluate((sel) => {
+      const elements = Array.from(document.querySelectorAll(sel));
+      return elements.at(-1)?.innerText?.trim() || '';
+    }, selector);
+
+    if (current === previous) {
+      stableCounter++;
+    } else {
+      stableCounter = 0;
+      previous = current;
+    }
+
+    if (stableCounter >= 5) break; // content stayed the same for ~1.5s
+
+    await page.waitForTimeout(300); // short interval
+  }
+
+  return previous || 'No response found.';
+}
+
 
 async function closeChat() {
   if (chatPageId) {
