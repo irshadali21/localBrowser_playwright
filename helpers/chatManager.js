@@ -52,7 +52,7 @@ async function sendChat(prompt) {
 }
 
 async function sendChatGPT(prompt) {
- if (!chatGPTPage || isChatGPTClosed) {
+  if (!chatGPTPage || isChatGPTClosed) {
     const { page, id } = await requestPage('chatgpt');
     chatGPTPage = page;
     chatGPTPageId = id;
@@ -73,16 +73,23 @@ async function sendChatGPT(prompt) {
     return 'Please login to ChatGPT manually.';
   }
 
-const input = chatGPTPage.locator('div[contenteditable="true"][id="prompt-textarea"]');
-await input.waitFor({ timeout: 10000 });
-await input.click(); // focus required
-await input.press('Control+A');
-await input.press('Backspace');
-await input.type(prompt, { delay: 10 });
-await chatGPTPage.keyboard.press('Enter');
+  const input = chatGPTPage.locator('div[contenteditable="true"][id="prompt-textarea"]');
+  await input.waitFor({ timeout: 10000 });
+  await input.click(); // focus required
+  await input.press('Control+A');
+  await input.press('Backspace');
 
+  if (prompt.includes('\n')) {
+    const lines = prompt.split('\n');
+    for (const line of lines) {
+      await input.type(line, { delay: 10 });
+      await chatGPTPage.keyboard.press('Shift+Enter');
+    }
+  } else {
+    await input.type(prompt, { delay: 10 });
+  }
 
-  await chatGPTPage.waitForTimeout(15000);
+  await chatGPTPage.keyboard.press('Enter'); // send once
 
   const response = await chatGPTPage.evaluate(() => {
     const turns = Array.from(document.querySelectorAll('div.markdown.prose'));
