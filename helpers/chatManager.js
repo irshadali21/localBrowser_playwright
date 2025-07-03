@@ -63,7 +63,7 @@ async function sendChatGPT(prompt) {
     });
 
     await chatGPTPage.goto('https://chatgpt.com/', { waitUntil: 'networkidle' });
-    await chatGPTPage.waitForTimeout(5000);
+    await chatGPTPage.waitForTimeout(2000);
   }
 
   // 1. Watch for the response stream
@@ -85,7 +85,7 @@ async function sendChatGPT(prompt) {
 
   // 3. Type the message
   const input = chatGPTPage.locator('div[contenteditable="true"][id="prompt-textarea"]');
-  await input.waitFor({ timeout: 5000 });
+  await input.waitFor({ timeout: 2000 });
   await input.click();
   await input.press('Control+A');
   await input.press('Backspace');
