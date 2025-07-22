@@ -1,8 +1,13 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
 
 // Single persistent database for the app
-const dbPath = path.join(__dirname, '../logs/database.db');
+const logsDir = path.join(__dirname, '../logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
+const dbPath = path.join(logsDir, 'database.db');
 const db = new Database(dbPath);
 
 // Create error_logs table if it doesn't exist
