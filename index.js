@@ -10,6 +10,7 @@ app.use(express.json());
 
 // API Key Auth Middleware
 app.use((req, res, next) => {
+  if (req.path.startsWith('/iaapa')) return next();
   if (req.headers['x-api-key'] !== process.env.API_KEY) {
     return res.status(401).json({ error: 'Unauthorized - Invalid API Key' });
   }
@@ -21,6 +22,8 @@ app.use('/chat', require('./routes/chatRoutes'));
 app.use('/browser', require('./routes/browserRoutes'));
 app.use('/error', require('./routes/errorRoutes'));
 app.use('/pages', require('./routes/pageRoutes'));
+
+app.use('/iaapa', require('./routes/iaapaRoutes'));
 
 app.get('/', (req, res) => {
   res.json({ status: 'LocalBrowser API (Playwright) is running' });
