@@ -49,7 +49,7 @@ exports.search = async (req, res, next) => {
   }
 };
 
-// GET /browser/visit?url=...
+// GET /browser/visit?url=...&returnHtml=false&waitUntil=networkidle
 exports.visit = async (req, res, next) => {
   const url = req.query.url;
   if (!url || typeof url !== 'string' || !/^https?:\/\//.test(url)) {
@@ -57,8 +57,22 @@ exports.visit = async (req, res, next) => {
   }
 
   try {
-    const html = await visitUrl(url);
-    res.json({ html });
+    const options = {
+      returnHtml: req.query.returnHtml === 'true',
+      saveToFile: req.query.saveToFile !== 'false',  // Default true
+      waitUntil: req.query.waitUntil || 'networkidle',
+      timeout: parseInt(req.query.timeout) || 60000
+    };
+
+    const result = await visitUrl(url, options);
+    
+    // If returnHtml is true, result is a string (backward compatible)
+    if (typeof result === 'string') {
+      return res.json({ html: result });
+    }
+    
+    // Otherwise, result is metadata object
+    res.json(result);
   } catch (err) {
     console.error('[BrowserController] Visit error:', err);
     logErrorToDB({
@@ -68,6 +82,74 @@ exports.visit = async (req, res, next) => {
       route: '/browser/visit',
       input: req.query
     });
+    next(err);
+  }
+};
+
+// GET /browser/download/:fileId
+exports.download = async (req, res, next) => {
+  const { fileId } = req.params;
+  
+  if (!fileId || typeof fileId !== 'string') {
+    return res.status(400).json({ error: 'Invalid file ID' });
+  }
+
+  try {
+    const { getHtmlFile } = require('../helpers/browserHelper');
+    const fileData = await getHtmlFile(fileId);
+    
+    // Send as downloadable file
+    res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileData.fileName}"`);
+    res.send(fileData.html);
+  } catch (err) {
+    console.error('[BrowserController] Download error:', err);
+    logErrorToDB({
+      type: 'DOWNLOAD_FAILED',
+      message: err.message,
+      stack: err.stack,
+      route: '/browser/download',
+      input: req.params
+    });
+    if (err.message.includes('not found')) {
+      return res.status(404).json({ error: err.message });
+    }
+    next(err);
+  }
+};
+
+// GET /browser/view/:fileId
+exports.view = async (req, res, next) => {
+  const { fileId } = req.params;
+  
+  if (!fileId || typeof fileId !== 'string') {
+    return res.status(400).json({ error: 'Invalid file ID' });
+  }
+
+  try {
+    const { getHtmlFile } = require('../helpers/browserHelper');
+    const fileData = await getHtmlFile(fileId);
+    
+    // Return HTML as JSON
+    res.json({
+      fileId: fileData.fileId,
+      fileName: fileData.fileName,
+      html: fileData.html,
+      fileSizeBytes: fileData.fileSizeBytes,
+      createdAt: fileData.createdAt
+    });
+  } catch (err) {
+    console.error('[BrowserController] View error:', err);
+    logErrorToDB({
+      type: 'VIEW_FAILED',
+      message: err.message,
+      stack: err.stack,
+      route: '/browser/view',
+      input: req.params
+    });
+    if (err.message.includes('not found')) {
+      return res.status(404).json({ error: err.message });
+    }
     next(err);
   }
 };

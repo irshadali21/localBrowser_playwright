@@ -24,6 +24,7 @@ app.use('/error', require('./routes/errorRoutes'));
 app.use('/pages', require('./routes/pageRoutes'));
 app.use('/jobs', require('./routes/jobRoutes'));
 app.use('/cron', require('./routes/cronRoutes'));
+app.use('/cleanup', require('./routes/cleanupRoutes'));
 
 app.use('/iaapa', require('./routes/iaapaRoutes'));
 
@@ -36,4 +37,8 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Playwright server running on port ${PORT}`);
+  
+  // Start automatic cleanup of old HTML files (every 6 hours, delete files older than 24 hours)
+  const { scheduleCleanup } = require('./utils/fileCleanup');
+  scheduleCleanup(6, 24);
 });

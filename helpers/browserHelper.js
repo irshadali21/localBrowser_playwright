@@ -56,13 +56,67 @@ async function googleSearch(query) {
   });
 }
 
-async function visitUrl(url) {
+async function visitUrl(url, options = {}) {
   const page = await getBrowserPage();
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
-  await page.evaluate(() => {
-    document.querySelectorAll('script, style, link[rel="stylesheet"]').forEach(el => el.remove());
+  const {
+    waitUntil = 'networkidle',  // Wait for all network requests to finish
+    timeout = 60000,
+    saveToFile = true,
+    returnHtml = false  // If false, returns file metadata; if true, returns HTML directly
+  } = options;
+
+  // Navigate and wait for page to fully load including AJAX/API calls
+  await gotoWithRetry(page, url, { 
+    waitUntil, 
+    timeout 
   });
-  return await page.content();
+
+  // Additional wait to ensure everything is settled
+  await page.waitForTimeout(2000);
+
+  // Get the full HTML content WITHOUT removing anything
+  const html = await page.content();
+
+  if (!saveToFile || returnHtml) {
+    // Legacy behavior: return HTML directly (for small pages)
+    return html;
+  }
+
+  // Save to file and return metadata
+  const fs = require('fs');
+  const path = require('path');
+  const crypto = require('crypto');
+  
+  const fileId = crypto.randomBytes(16).toString('hex');
+  const timestamp = Date.now();
+  const fileName = `${fileId}_${timestamp}.html`;
+  const filePath = path.join(process.cwd(), 'scraped_html', fileName);
+  
+  // Ensure directory exists
+  const dir = path.dirname(filePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  
+  // Save HTML to file
+  fs.writeFileSync(filePath, html, 'utf8');
+  
+  // Calculate file size
+  const stats = fs.statSync(filePath);
+  const fileSizeKB = (stats.size / 1024).toFixed(2);
+  const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);
+  
+  return {
+    fileId,
+    fileName,
+    url,
+    fileSizeKB: `${fileSizeKB} KB`,
+    fileSizeMB: `${fileSizeMB} MB`,
+    timestamp,
+    downloadUrl: `/browser/download/${fileId}`,
+    viewUrl: `/browser/view/${fileId}`,
+    message: 'HTML saved successfully. Use downloadUrl to retrieve the file.'
+  };
 }
 
 async function gotoWithRetry(page, url, options = {}, retries = 1) {
@@ -126,11 +180,44 @@ const scraperStrategies = {
   }
 };
 
+async function getHtmlFile(fileId) {
+  const fs = require('fs');
+  const path = require('path');
+  
+  // Find file by ID
+  const scrapedDir = path.join(process.cwd(), 'scraped_html');
+  
+  if (!fs.existsSync(scrapedDir)) {
+    throw new Error('Scraped HTML directory not found');
+  }
+  
+  const files = fs.readdirSync(scrapedDir);
+  const matchingFile = files.find(f => f.startsWith(fileId));
+  
+  if (!matchingFile) {
+    throw new Error(`HTML file not found for ID: ${fileId}`);
+  }
+  
+  const filePath = path.join(scrapedDir, matchingFile);
+  const html = fs.readFileSync(filePath, 'utf8');
+  const stats = fs.statSync(filePath);
+  
+  return {
+    fileId,
+    fileName: matchingFile,
+    filePath,
+    html,
+    fileSizeBytes: stats.size,
+    createdAt: stats.birthtime
+  };
+}
+
 module.exports = {
   executeCode,
   googleSearch,
   visitUrl,
   scrapeProduct,
   runScript,
-  closeBrowser
+  closeBrowser,
+  getHtmlFile
 };
