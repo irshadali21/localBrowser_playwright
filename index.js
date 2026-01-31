@@ -38,7 +38,18 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Playwright server running on port ${PORT}`);
   
-  // Start automatic cleanup of old HTML files (every 6 hours, delete files older than 24 hours)
-  const { scheduleCleanup } = require('./utils/fileCleanup');
-  scheduleCleanup(6, 24);
+  // Start automatic cleanup only for local storage (cloud storage doesn't need cleanup)
+  const storageType = process.env.STORAGE_TYPE || 'local';
+  const enableCleanup = process.env.ENABLE_LOCAL_CLEANUP !== 'false';
+  
+  if (storageType === 'local' && enableCleanup) {
+    const { scheduleCleanup } = require('./utils/fileCleanup');
+    const intervalHours = parseInt(process.env.CLEANUP_INTERVAL_HOURS) || 6;
+    const maxAgeHours = parseInt(process.env.CLEANUP_MAX_AGE_HOURS) || 24;
+    
+    scheduleCleanup(intervalHours, maxAgeHours);
+    console.log(`[Storage] Local file cleanup scheduled: Every ${intervalHours}h, delete files older than ${maxAgeHours}h`);
+  } else {
+    console.log(`[Storage] Using ${storageType} storage - automatic cleanup is ${enableCleanup ? 'disabled (cloud mode)' : 'disabled'}`);
+  }
 });

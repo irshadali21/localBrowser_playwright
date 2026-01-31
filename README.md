@@ -2,6 +2,41 @@
 
 REST API server for browser automation using Playwright with persistent browser contexts. Provides endpoints for web scraping, AI chat integration (Gemini/ChatGPT), async job processing with webhook callbacks, and automated resource management via cron endpoints.
 
+## Storage Options
+
+The API supports two storage backends for saved HTML files:
+
+### Local Storage (Default)
+- Stores files in `./scraped_html/` directory
+- Automatic cleanup of old files
+- Best for: Small deployments, testing, VPS with adequate storage
+
+### Cloud Storage (BeDrive)
+- Stores files on BeDrive unlimited cloud hosting
+- No storage limits, no automatic cleanup needed
+- Best for: Production, large-scale scraping, limited VPS storage
+
+### Storage Configuration
+
+Set storage type in `.env`:
+
+```env
+# Storage Configuration
+STORAGE_TYPE=local          # 'local' or 'cloud'
+
+# Local Storage Cleanup (only applies when STORAGE_TYPE=local)
+ENABLE_LOCAL_CLEANUP=true   # Enable/disable automatic cleanup
+CLEANUP_INTERVAL_HOURS=6    # Run cleanup every 6 hours
+CLEANUP_MAX_AGE_HOURS=24    # Delete files older than 24 hours
+
+# BeDrive Cloud Storage (only needed when STORAGE_TYPE=cloud)
+BEDRIVE_URL=https://your-bedrive-instance.com
+BEDRIVE_API_KEY=your_bedrive_api_key_here
+BEDRIVE_FOLDER_ID=scraped_html
+```
+
+**Important:** Cleanup only runs when `STORAGE_TYPE=local`. Cloud storage doesn't require cleanup due to unlimited storage.
+
 ## Features
 
 - **Persistent Browser Context** - Single browser instance with saved sessions and login states
