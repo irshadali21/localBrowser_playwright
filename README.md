@@ -13,6 +13,7 @@ The API supports two storage backends for saved HTML files:
 
 ### Cloud Storage (BeDrive)
 - Stores files on BeDrive unlimited cloud hosting
+- **Automatic shareable links** - Every uploaded file gets a public shareable link
 - No storage limits, no automatic cleanup needed
 - Best for: Production, large-scale scraping, limited VPS storage
 
@@ -30,16 +31,21 @@ CLEANUP_INTERVAL_HOURS=6    # Run cleanup every 6 hours
 CLEANUP_MAX_AGE_HOURS=24    # Delete files older than 24 hours
 
 # BeDrive Cloud Storage (only needed when STORAGE_TYPE=cloud)
-BEDRIVE_URL=https://your-bedrive-instance.com
+# Get these credentials from your BeDrive instance
+BEDRIVE_URL=https://your-bedrive-instance.com/api/v1
 BEDRIVE_API_KEY=your_bedrive_api_key_here
-BEDRIVE_FOLDER_ID=scraped_html
+BEDRIVE_FOLDER_ID=1  # Folder ID where files will be uploaded
 ```
 
-**Important:** Cleanup only runs when `STORAGE_TYPE=local`. Cloud storage doesn't require cleanup due to unlimited storage.
+**Important:** 
+- Cleanup only runs when `STORAGE_TYPE=local`. Cloud storage doesn't require cleanup.
+- BeDrive storage automatically generates shareable links for each uploaded file.
+- Shareable links allow public access to files without authentication.
 
 ## Features
 
 - **Persistent Browser Context** - Single browser instance with saved sessions and login states
+- **Flexible Storage** - Choose between local filesystem or BeDrive cloud storage with automatic shareable links
 - **AI Chat Integration** - Send prompts to Gemini and ChatGPT with session management
 - **Web Scraping** - Execute custom JavaScript, perform Google searches, visit URLs, and extract data
 - **Job Queue System** - Async job processing with webhook callbacks and HMAC signing
@@ -207,19 +213,45 @@ GET /browser/search?q=playwright+automation
 ```
 
 #### `GET /browser/visit?url=<url>`
-Visit a URL and return cleaned HTML (scripts/styles removed).
+Visit a URL and save the HTML. Returns file metadata with download/view URLs.
 
 **Example:**
 ```bash
 GET /browser/visit?url=https://example.com
 ```
 
-**Response:**
+**Response (Local Storage):**
 ```json
 {
-  "html": "<html><body>...</body></html>"
+  "fileId": "abc123...",
+  "fileName": "abc123_1234567890.html",
+  "url": "https://example.com",
+  "fileSizeKB": "0.52 KB",
+  "fileSizeMB": "0.00 MB",
+  "timestamp": 1234567890,
+  "storageType": "local",
+  "downloadUrl": "/browser/download/abc123...",
+  "viewUrl": "/browser/view/abc123...",
+  "message": "HTML saved successfully to local storage."
 }
 ```
+
+**Response (BeDrive Cloud Storage):**
+```json
+{
+  "fileId": "abc123...",
+  "cloudFileId": 9,
+  "shareableLink": "https://bedrive.wpulseapp.com/drive/shares/z4gGDq5A8A...",
+  "shareableHash": "z4gGDq5A8A...",
+  "storageType": "cloud",
+  "cloudProvider": "bedrive",
+  "downloadUrl": "/browser/download/abc123...",
+  "viewUrl": "/browser/view/abc123...",
+  "message": "HTML saved to BeDrive cloud storage. Shareable link: https://..."
+}
+```
+
+**Note:** With BeDrive storage, you can use the `shareableLink` to directly access the file without authentication.
 
 #### `GET /browser/scrape?url=<url>&vendor=<vendor>`
 Scrape product data using predefined vendor strategy.

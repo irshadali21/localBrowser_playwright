@@ -76,8 +76,53 @@ class BedriveStorageAdapter extends StorageAdapter {
       const file = uploadResponse.data.fileEntry || uploadResponse.data;
       console.log(`[BeDrive] Upload successful! File ID: ${file.id}`);
 
+      // Get or create shareable link for the file
+      let shareableLink = null;
+      try {
+        console.log(`[BeDrive] Fetching shareable link for file ID: ${file.id}...`);
+        
+        // Try to get existing shareable link
+        const linkResponse = await this.client.get(`/file-entries/${file.id}/shareable-link`);
+        shareableLink = linkResponse.data.link;
+        
+        // If link is null or doesn't exist, create one
+        if (!shareableLink) {
+          console.log(`[BeDrive] No shareable link exists, creating new one...`);
+          const createLinkResponse = await this.client.post(`/file-entries/${file.id}/shareable-link`, {
+            allow_download: true,
+            allow_edit: false
+          });
+          shareableLink = createLinkResponse.data.link;
+          console.log(`[BeDrive] Created shareable link:`, shareableLink);
+        } else {
+          console.log(`[BeDrive] Found existing shareable link:`, shareableLink);
+        }
+      } catch (error) {
+        // If getting link fails (404), create one
+        if (error.response?.status === 404) {
+          console.log(`[BeDrive] No shareable link found (404), creating new one...`);
+          try {
+            const createLinkResponse = await this.client.post(`/file-entries/${file.id}/shareable-link`, {
+              allow_download: true,
+              allow_edit: false
+            });
+            shareableLink = createLinkResponse.data.link;
+            console.log(`[BeDrive] Created shareable link:`, shareableLink);
+          } catch (createError) {
+            console.error(`[BeDrive] Failed to create shareable link:`, createError.response?.data || createError.message);
+          }
+        } else {
+          console.warn(`[BeDrive] Error getting shareable link (${error.response?.status}):`, error.response?.data || error.message);
+        }
+      }
+
       const fileSizeKB = (fileSizeBytes / 1024).toFixed(2);
       const fileSizeMB = (fileSizeBytes / (1024 * 1024)).toFixed(2);
+
+      // Build shareable URL if we have the link
+      const shareableUrl = shareableLink 
+        ? `${this.baseUrl.replace('/api/v1', '')}/drive/s/${shareableLink.hash}`
+        : null;
 
       return {
         fileId,
@@ -89,9 +134,13 @@ class BedriveStorageAdapter extends StorageAdapter {
         storageType: 'cloud',
         cloudProvider: 'bedrive',
         cloudFileId: file.id,
+        shareableLink: shareableUrl,
+        shareableHash: shareableLink?.hash || null,
         downloadUrl: `/browser/download/${fileId}`,
         viewUrl: `/browser/view/${fileId}`,
-        message: 'HTML saved successfully to BeDrive cloud storage. Use downloadUrl to retrieve the file.'
+        message: shareableUrl 
+          ? `HTML saved to BeDrive cloud storage. Shareable link: ${shareableUrl}`
+          : 'HTML saved successfully to BeDrive cloud storage. Use downloadUrl to retrieve the file.'
       };
     } catch (error) {
       console.error('[BeDrive] Upload error:', error.response?.data || error.message);
