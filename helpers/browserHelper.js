@@ -87,6 +87,16 @@ async function scrapeProduct(url, vendor) {
   return await strategy(page);
 }
 
+async function runScript(script, context = {}) {
+  if (!script || typeof script !== 'string') {
+    throw new Error('Invalid script definition');
+  }
+
+  const page = await getBrowserPage();
+  const fn = new Function('page', 'target', 'parser', 'context', script);
+  return await fn(page, context.target, context.parser, context);
+}
+
 // Vendor-specific scraping logic
 const scraperStrategies = {
   beddermattress: async (page) => {
@@ -121,5 +131,6 @@ module.exports = {
   googleSearch,
   visitUrl,
   scrapeProduct,
+  runScript,
   closeBrowser
 };

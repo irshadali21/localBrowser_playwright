@@ -22,6 +22,7 @@ app.use('/chat', require('./routes/chatRoutes'));
 app.use('/browser', require('./routes/browserRoutes'));
 app.use('/error', require('./routes/errorRoutes'));
 app.use('/pages', require('./routes/pageRoutes'));
+app.use('/jobs', require('./routes/jobRoutes'));
 
 app.use('/iaapa', require('./routes/iaapaRoutes'));
 
@@ -33,5 +34,5 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`✅ Playwright server running on port ${PORT}`);
+  console.log(`Playwright server running on port ${PORT}`);
 });
