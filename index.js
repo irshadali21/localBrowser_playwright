@@ -23,6 +23,7 @@ app.use('/browser', require('./routes/browserRoutes'));
 app.use('/error', require('./routes/errorRoutes'));
 app.use('/pages', require('./routes/pageRoutes'));
 app.use('/jobs', require('./routes/jobRoutes'));
+app.use('/cron', require('./routes/cronRoutes'));
 
 app.use('/iaapa', require('./routes/iaapaRoutes'));
 

@@ -77,10 +77,20 @@ function closePage(id) {
   pages.delete(id);
 }
 
+function getPageById(id) {
+  return pages.get(id);
+}
+
+function getAllPages() {
+  return pages;
+}
+
 module.exports = {
   requestPage,
   listPages,
   closePage,
   updateStatusIfClosed,
-  closeChat
+  closeChat,
+  getPageById,
+  getAllPages
 };
