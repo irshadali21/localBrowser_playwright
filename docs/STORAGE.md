@@ -336,6 +336,38 @@ post_max_size = 64M
 memory_limit = 256M
 ```
 
+**Socket Hang Up / Connection Timeout**
+```
+Error: WordPress upload failed: Connection timeout
+```
+**Causes:**
+- Large file size (>200KB) exceeds PHP execution time
+- Network connection unstable
+- WordPress server overloaded
+- Firewall blocking uploads
+
+**Solutions:**
+```php
+// In php.ini or .htaccess
+max_execution_time = 300       # 5 minutes
+max_input_time = 300           # 5 minutes
+upload_max_filesize = 64M
+post_max_size = 64M
+
+// In .htaccess (if php.ini not accessible)
+php_value max_execution_time 300
+php_value max_input_time 300
+php_value upload_max_filesize 64M
+php_value post_max_size 64M
+```
+
+**Quick fixes:**
+- Check WordPress site is accessible: `curl -I https://your-site.com`
+- Test with smaller page first
+- Check PHP error logs: `/var/log/php-errors.log`
+- Increase timeout in WordPress adapter (already set to 5 minutes)
+- Contact hosting provider if issue persists
+
 ---
 
 ## API Usage

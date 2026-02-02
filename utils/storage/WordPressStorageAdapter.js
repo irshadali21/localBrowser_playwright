@@ -57,7 +57,10 @@ class WordPressStorageAdapter extends StorageAdapter {
           ...formData.getHeaders()
         },
         maxContentLength: Infinity,
-        maxBodyLength: Infinity
+        maxBodyLength: Infinity,
+        timeout: 300000, // 5 minutes timeout for large files
+        // Retry configuration
+        validateStatus: (status) => status < 500 // Don't throw on 4xx errors
       });
 
       const media = uploadResponse.data;
@@ -90,6 +93,10 @@ class WordPressStorageAdapter extends StorageAdapter {
         throw new Error('WordPress authentication failed. Check username and password.');
       } else if (error.response?.status === 403) {
         throw new Error('WordPress upload forbidden. User may not have upload permissions.');
+      } else if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || error.message.includes('socket hang up')) {
+        throw new Error(`WordPress upload failed: Connection timeout. File size: ${(fileSizeBytes / 1024).toFixed(2)}KB. Try increasing PHP upload_max_filesize and max_execution_time, or check network connectivity.`);
+      } else if (error.response?.status === 413) {
+        throw new Error(`WordPress upload failed: Payload too large (${(fileSizeBytes / 1024).toFixed(2)}KB). Increase PHP upload_max_filesize and post_max_size settings.`);
       } else {
         throw new Error(`WordPress upload failed: ${error.response?.data?.message || error.message}`);
       }

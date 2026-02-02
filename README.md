@@ -707,6 +707,7 @@ Comprehensive guides are available in the `docs/` folder:
   - Comparison and recommendations
 
 ### Additional Documentation
+- **[COMMON_ISSUES.md](docs/COMMON_ISSUES.md)** - Common errors and solutions
 - **[FILE_STORAGE_API.md](docs/FILE_STORAGE_API.md)** - API endpoints reference
 - **[IMPROVEMENTS.md](docs/IMPROVEMENTS.md)** - Enhancement suggestions
 - **[SOLUTION_SUMMARY.md](docs/SOLUTION_SUMMARY.md)** - Implementation details
