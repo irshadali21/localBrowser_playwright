@@ -61,7 +61,7 @@ async function waitForCloudflareChallenge(page, options = {}) {
  * @param {Page} page - Playwright page object
  * @param {string} url - Target URL
  * @param {Object} options - Navigation and Cloudflare options
- * @returns {Promise<Object>} - { success, blocked, response }
+ * @returns {Promise<Object>} - { success, blocked, response, finalUrl }
  */
 async function gotoWithCloudflare(page, url, options = {}) {
   const {
@@ -78,11 +78,21 @@ async function gotoWithCloudflare(page, url, options = {}) {
       await page.waitForTimeout(delay);
     }
 
-    // Navigate to the page
+    // Navigate to the page (Playwright automatically follows redirects)
     const response = await page.goto(url, { 
       waitUntil, 
       timeout 
     });
+
+    // Wait a moment for any client-side redirects (JavaScript redirects)
+    await page.waitForTimeout(1000);
+    
+    // Get the final URL after all redirects
+    const finalUrl = page.url();
+    
+    if (finalUrl !== url) {
+      console.log(`[Cloudflare] Redirected: ${url} → ${finalUrl}`);
+    }
 
     // Check if we hit Cloudflare
     const isChallenge = await isCloudflareChallenge(page);
@@ -94,6 +104,7 @@ async function gotoWithCloudflare(page, url, options = {}) {
         success: passed,
         blocked: !passed,
         response,
+        finalUrl: page.url(),
         cloudflareEncountered: true,
       };
     }
@@ -102,6 +113,7 @@ async function gotoWithCloudflare(page, url, options = {}) {
       success: true,
       blocked: false,
       response,
+      finalUrl,
       cloudflareEncountered: false,
     };
 
@@ -109,12 +121,18 @@ async function gotoWithCloudflare(page, url, options = {}) {
     console.error('[Cloudflare] Navigation error:', err.message);
     
     // Check if we're on a Cloudflare block page despite the error
-    const isBlocked = await isCloudflareChallenge(page);
-    
-    throw {
-      ...err,
-      cloudflareBlocked: isBlocked,
-    };
+    try {
+      const isBlocked = await isCloudflareChallenge(page);
+      
+      throw {
+        ...err,
+        cloudflareBlocked: isBlocked,
+        finalUrl: page.url(),
+      };
+    } catch (checkErr) {
+      // If we can't even check the page, just throw the original error
+      throw err;
+    }
   }
 }
 

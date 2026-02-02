@@ -179,6 +179,66 @@ node tests/test-cloudflare.js https://your-site-with-cloudflare.com
 
 ---
 
+### 5. test-ssl-and-redirects.js
+Tests SSL certificate error handling and automatic redirect following.
+
+**What it tests:**
+- SSL/TLS certificate error handling (ignoring invalid certificates)
+- HTTP to HTTPS redirects
+- Language redirects (e.g., `/` → `/en`)
+- Domain redirects
+- Final URL tracking after redirect chains
+
+**Usage:**
+```bash
+# Test with default URLs (includes SSL issue site)
+node tests/test-ssl-and-redirects.js
+
+# Test with specific URL
+node tests/test-ssl-and-redirects.js https://sftoyota.com/
+```
+
+**Expected Output:**
+```
+🧪 Testing SSL Certificate Handling & Redirects
+
+1️⃣  Initializing browser context...
+✅ Browser ready
+
+======================================================================
+Test 1/3: Toyota site with SSL issue
+URL: https://sftoyota.com/
+======================================================================
+⏳ Navigating...
+
+📊 Results:
+   ⏱️  Time: 3.45s
+   🌐 Success: true
+   🚫 Blocked: false
+   ☁️  Cloudflare: false
+   📡 Status: 200
+
+🔗 URL Information:
+   Requested: https://sftoyota.com/
+   Final URL: https://sftoyota.com/
+   ℹ️  No redirect (same as requested)
+
+📄 Page Info:
+   Title: Toyota Dealer in San Francisco
+
+   ✅ No SSL errors detected
+
+✅ Test PASSED
+```
+
+**What it validates:**
+- Sites with invalid SSL certificates load successfully
+- Redirects are automatically followed
+- Final URL is tracked and returned
+- No SSL error content appears in the page
+
+---
+
 ## Running All Tests
 
 Run tests sequentially:
@@ -195,6 +255,9 @@ node test-shareable-link.js
 
 # Test Cloudflare protection
 node tests/test-cloudflare.js
+
+# Test SSL and redirects
+node tests/test-ssl-and-redirects.js
 ```
 
 ---

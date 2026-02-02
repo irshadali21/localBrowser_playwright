@@ -11,6 +11,7 @@ async function configBrowser() {
     locale: 'en-US',
     timezoneId: 'America/New_York',
     permissions: ['geolocation', 'notifications'],
+    ignoreHTTPSErrors: true,  // Ignore SSL/TLS certificate errors
     args: [
       '--disable-blink-features=AutomationControlled',
       '--disable-web-security',
@@ -23,7 +24,9 @@ async function configBrowser() {
       '--no-zygote',
       '--disable-gpu',
       '--lang=en-US,en',
-      '--window-size=1280,800'
+      '--window-size=1280,800',
+      '--ignore-certificate-errors',
+      '--ignore-certificate-errors-spki-list'
     ]
   });
 }

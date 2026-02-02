@@ -1,6 +1,6 @@
 # Cloudflare Protection Handling
 
-This project implements multiple strategies to handle Cloudflare and other anti-bot protection systems.
+This project implements multiple strategies to handle Cloudflare and other anti-bot protection systems, SSL certificate errors, and automatic redirect following.
 
 ## Implemented Solutions
 
@@ -10,6 +10,7 @@ Enhanced browser launch arguments mask automation detection:
 - Real browser fingerprints (plugins, languages, chrome object)
 - Updated User-Agent strings
 - Locale and timezone settings
+- **SSL certificate error handling** (ignores invalid/expired certificates)
 
 ### 2. Cloudflare Challenge Detection & Waiting
 The `cloudflareHelper.js` module provides:
@@ -17,18 +18,50 @@ The `cloudflareHelper.js` module provides:
 - **Smart waiting** for challenges to complete (up to 30s)
 - **Human-like behavior** simulation (mouse movement, scrolling)
 
-### 3. Persistent Browser Context
+### 3. Automatic Redirect Handling
+The system automatically:
+- **Follows all HTTP redirects** (301, 302, 307, 308)
+- **Handles JavaScript redirects** (waits for client-side redirects)
+- **Tracks redirect chains** (from initial URL to final destination)
+- **Returns final URL** in results (e.g., `/` → `/en` language redirects)
+
+### 4. Persistent Browser Context
 Your existing persistent context in `profile-data/` helps by:
 - Maintaining cookies across sessions
 - Preserving Cloudflare clearance tokens
 - Building trust over multiple visits
 
+## Common Issues Handled
+
+### SSL Certificate Errors ✅ FIXED
+**Problem:**
+```
+ERR_CERT_COMMON_NAME_INVALID
+ERR_CERT_DATE_INVALID
+ERR_CERT_AUTHORITY_INVALID
+```
+
+**Solution:** Automatically ignored via `ignoreHTTPSErrors: true` in browser config.
+
+### Language Redirects ✅ FIXED
+**Problem:** Site redirects `/` → `/en` or `/es` for language selection
+
+**Solution:** System follows redirects automatically and returns final URL:
+```javascript
+{
+  "requestedUrl": "https://example.com/",
+  "finalUrl": "https://example.com/en",
+  "fileId": "abc123..."
+}
+```
+
 ## Usage
 
-### Basic Usage (Automatic Cloudflare Handling)
+### Basic Usage (Automatic Handling)
 ```javascript
-// Default behavior - handles Cloudflare automatically
+// Handles Cloudflare, SSL errors, and redirects automatically
 const result = await visitUrl('https://example.com');
+// If redirected, result includes both requestedUrl and finalUrl
 ```
 
 ### Advanced Options
@@ -40,6 +73,11 @@ const result = await visitUrl('https://example.com', {
   saveToFile: true,
   returnHtml: false
 });
+
+// Check if site redirected
+if (result.finalUrl !== result.requestedUrl) {
+  console.log(`Redirected: ${result.requestedUrl} → ${result.finalUrl}`);
+}
 ```
 
 ### Disable Cloudflare Handling
@@ -131,7 +169,36 @@ curl -X POST http://localhost:5000/browser/visit \
   }'
 ```
 
+**Response with redirect:**
+```json
+{
+  "success": true,
+  "fileId": "abc123def456...",
+  "url": "https://bmw.websites.dealerinspire.com/en",
+  "requestedUrl": "https://bmw.websites.dealerinspire.com",
+  "finalUrl": "https://bmw.websites.dealerinspire.com/en",
+  "shareableLink": "https://storage.com/share/abc123..."
+}
+```
+
 ## Troubleshooting
+
+### Error: "ERR_CERT_COMMON_NAME_INVALID"
+✅ **Automatically handled** - SSL certificate errors are now ignored by default.
+
+If you still see this error, verify:
+- `ignoreHTTPSErrors: true` is set in `playwrightConfig.js`
+- Browser arguments include `--ignore-certificate-errors`
+
+### Site Redirects Not Being Followed
+✅ **Automatically handled** - All redirects are now followed automatically.
+
+The API returns both `requestedUrl` and `finalUrl` so you can see the redirect chain:
+```javascript
+const result = await visitUrl('https://example.com');
+console.log('Requested:', result.requestedUrl);  // https://example.com
+console.log('Final:', result.finalUrl);           // https://example.com/en
+```
 
 ### Error: "Cloudflare challenge failed"
 - **Solution**: Run in non-headless mode and let the challenge complete manually first

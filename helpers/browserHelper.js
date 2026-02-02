@@ -67,6 +67,8 @@ async function visitUrl(url, options = {}) {
     handleCloudflare = true  // Enable Cloudflare handling by default
   } = options;
 
+  let finalUrl = url;
+
   // Navigate with Cloudflare handling if enabled
   if (handleCloudflare) {
     const result = await gotoWithCloudflare(page, url, {
@@ -80,6 +82,9 @@ async function visitUrl(url, options = {}) {
       throw new Error('Cloudflare challenge failed - site still blocking access');
     }
 
+    // Store the final URL after redirects
+    finalUrl = result.finalUrl || page.url();
+
     // Add human-like behavior after successful navigation
     await simulateHumanBehavior(page);
   } else {
@@ -88,10 +93,18 @@ async function visitUrl(url, options = {}) {
       waitUntil, 
       timeout 
     }, 1);
+    
+    // Get final URL after redirects
+    finalUrl = page.url();
   }
 
   // Additional wait to ensure everything is settled
   await page.waitForTimeout(2000);
+
+  // Log if URL changed due to redirect
+  if (finalUrl !== url) {
+    console.log(`[Browser] Final URL after redirects: ${finalUrl}`);
+  }
 
   // Get the full HTML content WITHOUT removing anything
   const html = await page.content();
@@ -108,7 +121,15 @@ async function visitUrl(url, options = {}) {
   
   const fileId = crypto.randomBytes(16).toString('hex');
   
-  return await storage.saveHtml(fileId, html, url);
+  const result = await storage.saveHtml(fileId, html, finalUrl);
+  
+  // Add final URL to the result if it's different from requested URL
+  if (finalUrl !== url) {
+    result.requestedUrl = url;
+    result.finalUrl = finalUrl;
+  }
+  
+  return result;
 }
 
 async function gotoWithRetry(page, url, options = {}, retries = 1) {
