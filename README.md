@@ -4,7 +4,7 @@ REST API server for browser automation using Playwright with persistent browser 
 
 ## Storage Options
 
-The API supports two storage backends for saved HTML files:
+The API supports three storage backends for saved HTML files:
 
 ### Local Storage (Default)
 - Stores files in `./scraped_html/` directory
@@ -17,29 +17,41 @@ The API supports two storage backends for saved HTML files:
 - No storage limits, no automatic cleanup needed
 - Best for: Production, large-scale scraping, limited VPS storage
 
+### WordPress Media Storage
+- Stores files in WordPress Media Library via REST API
+- Direct public URLs to uploaded files
+- Uses WordPress application passwords for secure authentication
+- No storage limits (depends on hosting plan)
+- Best for: Teams already using WordPress, need CMS integration
+
 ### Storage Configuration
 
 Set storage type in `.env`:
 
 ```env
 # Storage Configuration
-STORAGE_TYPE=local          # 'local' or 'cloud'
+STORAGE_TYPE=local          # 'local', 'cloud'/'bedrive', or 'wordpress'
 
 # Local Storage Cleanup (only applies when STORAGE_TYPE=local)
 ENABLE_LOCAL_CLEANUP=true   # Enable/disable automatic cleanup
 CLEANUP_INTERVAL_HOURS=6    # Run cleanup every 6 hours
 CLEANUP_MAX_AGE_HOURS=24    # Delete files older than 24 hours
 
-# BeDrive Cloud Storage (only needed when STORAGE_TYPE=cloud)
-# Get these credentials from your BeDrive instance
+# BeDrive Cloud Storage (only needed when STORAGE_TYPE=cloud or bedrive)
 BEDRIVE_URL=https://your-bedrive-instance.com/api/v1
 BEDRIVE_API_KEY=your_bedrive_api_key_here
 BEDRIVE_FOLDER_ID=1  # Folder ID where files will be uploaded
+
+# WordPress Media Storage (only needed when STORAGE_TYPE=wordpress)
+WORDPRESS_URL=https://your-wordpress-site.com
+WORDPRESS_USERNAME=your_username
+WORDPRESS_PASSWORD=your_application_password
 ```
 
 **Important:** 
 - Cleanup only runs when `STORAGE_TYPE=local`. Cloud storage doesn't require cleanup.
 - BeDrive storage automatically generates shareable links for each uploaded file.
+- WordPress storage uses application passwords (generate in WordPress admin under Users → Profile).
 - Shareable links allow public access to files without authentication.
 
 ## Features

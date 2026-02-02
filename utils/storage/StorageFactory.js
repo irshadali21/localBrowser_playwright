@@ -1,6 +1,7 @@
 // utils/storage/StorageFactory.js
 const LocalStorageAdapter = require('./LocalStorageAdapter');
 const BedriveStorageAdapter = require('./BedriveStorageAdapter');
+const WordPressStorageAdapter = require('./WordPressStorageAdapter');
 
 class StorageFactory {
   static createStorage() {
@@ -15,6 +16,13 @@ class StorageFactory {
           url: process.env.BEDRIVE_URL,
           apiKey: process.env.BEDRIVE_API_KEY,
           folderId: process.env.BEDRIVE_FOLDER_ID || 'scraped_html'
+        });
+
+      case 'wordpress':
+        return new WordPressStorageAdapter({
+          url: process.env.WORDPRESS_URL,
+          username: process.env.WORDPRESS_USERNAME,
+          password: process.env.WORDPRESS_PASSWORD
         });
 
       case 'local':
@@ -35,6 +43,11 @@ class StorageFactory {
         url: process.env.BEDRIVE_URL,
         apiKey: process.env.BEDRIVE_API_KEY,
         folderId: process.env.BEDRIVE_FOLDER_ID || 'scraped_html'
+      },
+      wordpress: {
+        url: process.env.WORDPRESS_URL,
+        username: process.env.WORDPRESS_USERNAME,
+        password: process.env.WORDPRESS_PASSWORD
       }
     };
   }

@@ -9,7 +9,8 @@ Implemented flexible storage backend with support for both local filesystem and 
 ```
 StorageAdapter (Base Interface)
     ├── LocalStorageAdapter (Filesystem implementation)
-    └── BedriveStorageAdapter (Cloud API implementation)
+    ├── BedriveStorageAdapter (Cloud API implementation)
+    └── WordPressStorageAdapter (WordPress Media API implementation)
 ```
 
 ### Key Components
@@ -30,7 +31,15 @@ StorageAdapter (Base Interface)
 - Auto-creates `scraped_html` folder on BeDrive
 - No cleanup support (unlimited storage)
 
-#### 4. StorageFactory.js
+#### 4. WordPressStorageAdapter.js
+- Integrates with WordPress REST API Media Library
+- Uploads files via `/wp/v2/media` endpoint
+- Uses WordPress application passwords for authentication
+- Downloads files directly from WordPress media URLs
+- Adds metadata (title, caption, description) to uploads
+- No cleanup support (managed by WordPress)
+
+#### 5. StorageFactory.js
 - Creates appropriate storage adapter based on `STORAGE_TYPE` env variable
 - Reads configuration from environment variables
 - Single point of adapter instantiation
@@ -39,17 +48,22 @@ StorageAdapter (Base Interface)
 
 ```env
 # Storage Configuration
-STORAGE_TYPE=local          # 'local' or 'cloud'
+STORAGE_TYPE=local          # 'local', 'cloud'/'bedrive', or 'wordpress'
 
 # Local Storage Cleanup (only applies when STORAGE_TYPE=local)
 ENABLE_LOCAL_CLEANUP=true   # Enable/disable automatic cleanup
 CLEANUP_INTERVAL_HOURS=6    # Run cleanup every 6 hours
 CLEANUP_MAX_AGE_HOURS=24    # Delete files older than 24 hours
 
-# BeDrive Cloud Storage (only needed when STORAGE_TYPE=cloud)
+# BeDrive Cloud Storage (only needed when STORAGE_TYPE=cloud or bedrive)
 BEDRIVE_URL=https://your-bedrive-instance.com
 BEDRIVE_API_KEY=your_bedrive_api_key_here
 BEDRIVE_FOLDER_ID=scraped_html
+
+# WordPress Media Storage (only needed when STORAGE_TYPE=wordpress)
+WORDPRESS_URL=https://your-wordpress-site.com
+WORDPRESS_USERNAME=your_username
+WORDPRESS_PASSWORD=your_application_password
 ```
 
 ## Code Changes
@@ -210,3 +224,9 @@ Possible additions:
 - Storage migration utility (local ↔ cloud)
 - Webhook notifications for storage events
 - Automatic storage type selection based on available space
+
+## Related Documentation
+
+- **WordPress Setup Guide**: [WORDPRESS_STORAGE_SETUP.md](./WORDPRESS_STORAGE_SETUP.md)
+- **BeDrive Setup Guide**: [BEDRIVE_SETUP.md](./BEDRIVE_SETUP.md)
+- **File Storage API**: [FILE_STORAGE_API.md](./FILE_STORAGE_API.md)
