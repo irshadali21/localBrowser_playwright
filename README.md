@@ -687,13 +687,74 @@ const scraperStrategies = {
 - Check API endpoint is accessible
 - Review error logs in database
 
+## Documentation
+
+Comprehensive guides are available in the `docs/` folder:
+
+### Core Documentation
+- **[SETUP.md](docs/SETUP.md)** - Complete setup and installation guide
+  - System requirements
+  - Installation steps
+  - Configuration
+  - Testing
+  - Production deployment
+  
+- **[STORAGE.md](docs/STORAGE.md)** - Storage configuration guide
+  - Local, BeDrive, and WordPress storage options
+  - Setup instructions for each storage type
+  - API usage examples
+  - Troubleshooting
+  - Comparison and recommendations
+
+### Additional Documentation
+- **[FILE_STORAGE_API.md](docs/FILE_STORAGE_API.md)** - API endpoints reference
+- **[IMPROVEMENTS.md](docs/IMPROVEMENTS.md)** - Enhancement suggestions
+- **[SOLUTION_SUMMARY.md](docs/SOLUTION_SUMMARY.md)** - Implementation details
+
+### Testing
+All test scripts are located in the `tests/` folder:
+- `test-storage-adapter.js` - Test storage configuration
+- `test-wordpress-storage.js` - Test WordPress integration
+- `test-shareable-link.js` - Test BeDrive shareable links
+
+Run tests:
+```bash
+cd tests
+node test-storage-adapter.js
+```
+
 ## License
 
 ISC
 
 ## Support
 
-For issues and questions, check the error logs:
-```bash
-sqlite3 logs/database.db "SELECT * FROM error_logs ORDER BY created_at DESC LIMIT 10;"
-```
+For issues and questions:
+
+1. **Check Documentation:**
+   - [Setup Guide](docs/SETUP.md)
+   - [Storage Guide](docs/STORAGE.md)
+
+2. **Review Logs:**
+   ```bash
+   # Application logs
+   tail -f logs/*.log
+   
+   # Database errors
+   sqlite3 logs/database.db "SELECT * FROM error_logs ORDER BY timestamp DESC LIMIT 10;"
+   ```
+
+3. **Run Tests:**
+   ```bash
+   cd tests
+   node test-storage-adapter.js
+   ```
+
+4. **Check Configuration:**
+   ```bash
+   # Verify environment
+   cat .env
+   
+   # Test API
+   curl -H "x-api-key: YOUR_KEY" http://localhost:5000/cleanup/stats
+   ```
