@@ -1,5 +1,6 @@
 // helpers/browserHelper.js
 const { requestPage, closePage } = require('../utils/pageManager');
+const { gotoWithCloudflare, simulateHumanBehavior } = require('./cloudflareHelper');
 
 let browserPageId = null;
 let browserPage = null;
@@ -62,15 +63,32 @@ async function visitUrl(url, options = {}) {
     waitUntil = 'networkidle',  // Wait for all network requests to finish
     timeout = 60000,
     saveToFile = true,
-    returnHtml = false  // If false, returns file metadata; if true, returns HTML directly
+    returnHtml = false,  // If false, returns file metadata; if true, returns HTML directly
+    handleCloudflare = true  // Enable Cloudflare handling by default
   } = options;
 
-  // Navigate and wait for page to fully load including AJAX/API calls
-  // Will automatically fallback to 'load' then 'domcontentloaded' on timeout
-  await gotoWithRetry(page, url, { 
-    waitUntil, 
-    timeout 
-  }, 1);
+  // Navigate with Cloudflare handling if enabled
+  if (handleCloudflare) {
+    const result = await gotoWithCloudflare(page, url, {
+      waitUntil,
+      timeout,
+      cfTimeout: 30000,
+      humanDelay: true
+    });
+
+    if (result.blocked) {
+      throw new Error('Cloudflare challenge failed - site still blocking access');
+    }
+
+    // Add human-like behavior after successful navigation
+    await simulateHumanBehavior(page);
+  } else {
+    // Fallback to original retry logic
+    await gotoWithRetry(page, url, { 
+      waitUntil, 
+      timeout 
+    }, 1);
+  }
 
   // Additional wait to ensure everything is settled
   await page.waitForTimeout(2000);

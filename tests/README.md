@@ -123,6 +123,62 @@ node test-shareable-link.js
 
 ---
 
+### 4. test-cloudflare.js
+Tests Cloudflare protection handling and anti-bot bypass mechanisms.
+
+**What it tests:**
+- Cloudflare challenge detection
+- Automatic challenge waiting
+- Human-like behavior simulation
+- Stealth mode configuration
+- Navigation success/failure
+
+**Usage:**
+```bash
+# Test with default BMW site
+node tests/test-cloudflare.js
+
+# Test with custom URL
+node tests/test-cloudflare.js https://your-site-with-cloudflare.com
+```
+
+**Prerequisites:**
+- Browser context initialized
+- For best results, run in non-headless mode first:
+  ```bash
+  HEADLESS=false node tests/test-cloudflare.js
+  ```
+
+**Expected Output:**
+```
+🧪 Testing Cloudflare Protection Handling
+
+1️⃣  Initializing browser context...
+✅ Browser ready
+
+2️⃣  Navigating to: https://example.com
+⏳ This may take 30-60 seconds if Cloudflare challenge is present...
+
+[Cloudflare] Detected challenge, waiting for clearance...
+[Cloudflare] Challenge passed successfully!
+
+📊 Navigation Results:
+⏱️  Time elapsed: 15.32s
+🌐 Success: true
+🚫 Blocked: false
+☁️  Cloudflare encountered: true
+
+✅ Successfully bypassed protection!
+📸 Screenshot saved to: tests/cloudflare-test-success.png
+```
+
+**Troubleshooting:**
+- If test fails, run in non-headless mode and complete challenge manually once
+- Persistent browser will remember clearance tokens
+- See [docs/CLOUDFLARE.md](../docs/CLOUDFLARE.md) for detailed solutions
+
+---
+
 ## Running All Tests
 
 Run tests sequentially:
@@ -136,6 +192,9 @@ node test-wordpress-storage.js
 
 # Test BeDrive links (if configured)
 node test-shareable-link.js
+
+# Test Cloudflare protection
+node tests/test-cloudflare.js
 ```
 
 ---

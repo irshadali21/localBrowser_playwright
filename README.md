@@ -57,6 +57,7 @@ WORDPRESS_PASSWORD=your_application_password
 ## Features
 
 - **Persistent Browser Context** - Single browser instance with saved sessions and login states
+- **Cloudflare Protection** - Automatic handling of Cloudflare challenges with stealth mode and human-like behavior
 - **Flexible Storage** - Choose between local filesystem or BeDrive cloud storage with automatic shareable links
 - **AI Chat Integration** - Send prompts to Gemini and ChatGPT with session management
 - **Web Scraping** - Execute custom JavaScript, perform Google searches, visit URLs, and extract data
@@ -707,6 +708,7 @@ Comprehensive guides are available in the `docs/` folder:
   - Comparison and recommendations
 
 ### Additional Documentation
+- **[CLOUDFLARE.md](docs/CLOUDFLARE.md)** - Handling Cloudflare protection and anti-bot systems
 - **[COMMON_ISSUES.md](docs/COMMON_ISSUES.md)** - Common errors and solutions
 - **[FILE_STORAGE_API.md](docs/FILE_STORAGE_API.md)** - API endpoints reference
 - **[IMPROVEMENTS.md](docs/IMPROVEMENTS.md)** - Enhancement suggestions
