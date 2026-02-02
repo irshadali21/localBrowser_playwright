@@ -66,10 +66,11 @@ async function visitUrl(url, options = {}) {
   } = options;
 
   // Navigate and wait for page to fully load including AJAX/API calls
+  // Will automatically fallback to 'load' then 'domcontentloaded' on timeout
   await gotoWithRetry(page, url, { 
     waitUntil, 
     timeout 
-  });
+  }, 1);
 
   // Additional wait to ensure everything is settled
   await page.waitForTimeout(2000);
@@ -93,13 +94,33 @@ async function visitUrl(url, options = {}) {
 }
 
 async function gotoWithRetry(page, url, options = {}, retries = 1) {
+  const waitStrategies = ['networkidle', 'load', 'domcontentloaded'];
+  const currentStrategy = options.waitUntil || 'networkidle';
+  const strategyIndex = waitStrategies.indexOf(currentStrategy);
+  
   try {
+    console.log(`[Navigation] Attempting ${url} with waitUntil=${currentStrategy}, timeout=${options.timeout || 30000}ms`);
     return await page.goto(url, options);
   } catch (err) {
-    if (err.message.includes('Navigation timeout') && retries > 0) {
-      await page.waitForTimeout(3000);
-      return gotoWithRetry(page, url, options, retries - 1);
+    const isTimeout = err.message.includes('Timeout') || err.name === 'TimeoutError';
+    
+    if (isTimeout) {
+      // Try next wait strategy as fallback
+      if (strategyIndex < waitStrategies.length - 1) {
+        const nextStrategy = waitStrategies[strategyIndex + 1];
+        console.log(`[Navigation] Timeout with '${currentStrategy}', falling back to '${nextStrategy}'`);
+        await page.waitForTimeout(2000);
+        return gotoWithRetry(page, url, { ...options, waitUntil: nextStrategy }, 0);
+      }
+      
+      // If already on last strategy, do one retry with same settings
+      if (retries > 0) {
+        console.log(`[Navigation] Retrying ${url} (${retries} attempts left)`);
+        await page.waitForTimeout(3000);
+        return gotoWithRetry(page, url, options, retries - 1);
+      }
     }
+    
     throw err;
   }
 }
