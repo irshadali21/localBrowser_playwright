@@ -65,7 +65,7 @@ class ResultSubmitter {
     const payload = {
       task_id: result.task_id,
       type: result.type,
-      success: result.success,
+      status: result.success ? 'completed' : 'failed',
       result: result.result || null,
       error: result.error || null,
       executed_at: result.executed_at,
@@ -73,7 +73,9 @@ class ResultSubmitter {
       worker_id: this.workerId.split(':')[0], // Just the simple worker ID
       processing_by: this.workerId, // Full hostname:pid for detailed tracking
     };
-
+console.error('[payload]', {
+              payload: payload
+            });
     const signature = crypto
       .createHmac('sha256', this.secret)
       .update(timestamp.toString())
@@ -112,6 +114,9 @@ class ResultSubmitter {
               body: data ? JSON.parse(data) : null,
             });
           } else {
+            console.error('[responce]', {
+              res: res
+            });
             reject(new Error(`Laravel returned ${res.statusCode}: ${data}`));
           }
         });
