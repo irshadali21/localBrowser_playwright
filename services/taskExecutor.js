@@ -1,0 +1,189 @@
+// services/taskExecutor.js
+const path = require('path');
+const fs = require('fs').promises;
+
+/**
+ * Task Executor Service
+ * 
+ * Executes browser automation tasks based on task type.
+ * Returns structured results for submission back to Laravel.
+ */
+class TaskExecutor {
+  constructor(browserHelper) {
+    this.browserHelper = browserHelper;
+  }
+
+  /**
+   * Execute a single browser task
+   * @param {Object} task - Task object from database
+   * @param {string} task.id - Task ID
+   * @param {string} task.type - Task type (website_html, lighthouse_html)
+   * @param {string} task.url - URL to process
+   * @param {Object} task.payload - Task-specific configuration
+   * @returns {Promise<Object>} Result object
+   */
+  async execute(task) {
+    console.log(`[TaskExecutor] Starting task ${task.id}`, {
+      type: task.type,
+      url: task.url,
+    });
+
+    try {
+      switch (task.type) {
+        case 'website_html':
+          return await this.executeWebsiteHtml(task);
+        case 'lighthouse_html':
+          return await this.executeLighthouseHtml(task);
+        default:
+          throw new Error(`Unknown task type: ${task.type}`);
+      }
+    } catch (error) {
+      console.error(`[TaskExecutor] Task ${task.id} failed:`, error);
+
+      return {
+        task_id: task.id,
+        type: task.type,
+        success: false,
+        error: error.message,
+        executed_at: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Execute website_html task: fetch and extract HTML from URL
+   * @private
+   */
+  async executeWebsiteHtml(task) {
+    const startTime = Date.now();
+    const { url, payload } = task;
+
+    const browser = await this.browserHelper.launchBrowser();
+
+    try {
+      const page = await browser.newPage();
+      
+      // Set viewport per payload config
+      if (payload?.viewport) {
+        await page.setViewportSize(payload.viewport);
+      }
+
+      // Navigate to URL
+      await page.goto(url, { waitUntil: 'networkidle' });
+
+      // Get page HTML
+      const html = await page.content();
+
+      // Get page title and meta
+      const title = await page.title();
+      const meta = await page.evaluate(() => {
+        const metaTags = Array.from(document.querySelectorAll('meta'));
+        return metaTags.map(tag => ({
+          name: tag.getAttribute('name') || tag.getAttribute('property'),
+          content: tag.getAttribute('content'),
+        }));
+      });
+
+      await page.close();
+
+      const duration = Date.now() - startTime;
+
+      console.log(`[TaskExecutor] website_html task ${task.id} completed`, {
+        url,
+        duration: `${duration}ms`,
+        htmlSize: html.length,
+      });
+
+      return {
+        task_id: task.id,
+        type: 'website_html',
+        success: true,
+        result: {
+          url,
+          title,
+          html,
+          meta,
+          timestamp: new Date().toISOString(),
+        },
+        executed_at: new Date().toISOString(),
+        duration_ms: duration,
+      };
+    } finally {
+      await browser.close();
+    }
+  }
+
+  /**
+   * Execute lighthouse_html task: run Lighthouse audit and return JSON
+   * @private
+   */
+  async executeLighthouseHtml(task) {
+    const startTime = Date.now();
+    const { url, payload } = task;
+
+    // Import lighthouse dynamically to avoid blocking other tasks
+    const lighthouse = await import('lighthouse');
+    const lighthouseFn = lighthouse.default;
+
+    try {
+      // Run Lighthouse audit
+      const options = {
+        logLevel: 'error', // Suppress verbose output
+        output: 'json',
+        port: process.env.CHROME_PORT || undefined,
+        ...payload?.lighthouseOptions,
+      };
+
+      const runnerResult = await lighthouseFn(url, options);
+      const lhr = runnerResult?.lhr;
+
+      if (!lhr) {
+        throw new Error('No Lighthouse report generated');
+      }
+
+      const duration = Date.now() - startTime;
+
+      console.log(`[TaskExecutor] lighthouse_html task ${task.id} completed`, {
+        url,
+        duration: `${duration}ms`,
+        score: lhr.categories?.performance?.score,
+      });
+
+      return {
+        task_id: task.id,
+        type: 'lighthouse_html',
+        success: true,
+        result: {
+          url,
+          lighthouseVersion: lhr.lighthouseVersion,
+          scores: {
+            performance: lhr.categories?.performance?.score,
+            accessibility: lhr.categories?.accessibility?.score,
+            bestPractices: lhr.categories?.['best-practices']?.score,
+            seo: lhr.categories?.seo?.score,
+          },
+          audits: lhr.audits,
+          configSettings: lhr.configSettings,
+          timestamp: new Date().toISOString(),
+        },
+        executed_at: new Date().toISOString(),
+        duration_ms: duration,
+      };
+    } catch (error) {
+      console.error(`[TaskExecutor] Lighthouse task ${task.id} failed:`, error.message);
+
+      const duration = Date.now() - startTime;
+
+      return {
+        task_id: task.id,
+        type: 'lighthouse_html',
+        success: false,
+        error: error.message,
+        executed_at: new Date().toISOString(),
+        duration_ms: duration,
+      };
+    }
+  }
+}
+
+module.exports = TaskExecutor;
