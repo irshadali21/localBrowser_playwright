@@ -36,7 +36,12 @@ class StartupWorkerHandshake {
       try {
         const response = await this._callRequestWork();
 
-        if (response.status === 'ok' && response.tasks && response.tasks.length > 0) {
+        if (typeof response === 'string') {
+          response = JSON.parse(response);
+        }
+        this.logger.info('[StartupWorkerHandshake] response', response);
+
+        if (response.tasks && response.tasks.length > 0) {
           this.logger.info('[StartupWorkerHandshake] Handshake successful', {
             workerId: this.workerId,
             taskCount: response.tasks.length,
@@ -126,7 +131,7 @@ class StartupWorkerHandshake {
       req.on('error', reject);
 
       // Send request body with max_tasks parameter and worker identity
-      const payload = JSON.stringify({ 
+      const payload = JSON.stringify({
         max_tasks: 10,
         worker_id: this.workerId,
         processing_by: this.processingBy,

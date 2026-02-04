@@ -12,6 +12,14 @@ function verifySignature(req, res, next) {
   const signature = req.headers['x-signature'];
   const timestamp = req.headers['x-timestamp'];
 
+  console.log('[HMAC] Incoming request', {
+    path: req.path,
+    method: req.method,
+    signature: signature ? signature.substring(0, 16) + '...' : 'MISSING',
+    timestamp: timestamp,
+    allHeaders: Object.keys(req.headers).sort(),
+  });
+
   if (!signature || !timestamp) {
     console.warn('[HMAC] Missing signature headers', {
       path: req.path,
@@ -40,19 +48,38 @@ function verifySignature(req, res, next) {
   const secret = process.env.LOCALBROWSER_SECRET;
   if (!secret) {
     console.error('[HMAC] LOCALBROWSER_SECRET not configured');
-
     return res.status(500).json({ error: 'Server misconfiguration' });
   }
+
+  console.log('[HMAC] Secret info', {
+    secretLength: secret.length,
+    secretPreview: secret.substring(0, 16) + '...',
+  });
 
   const expectedSignature = crypto
     .createHmac('sha256', secret)
     .update(timestamp.toString())
     .digest('hex');
 
-  if (!crypto.timingsSafeEqual(expectedSignature, signature)) {
+  // Simple string comparison (signatures should always be same length hex strings)
+  const signaturesMatch = expectedSignature === signature;
+
+  console.log('[HMAC] Signature verification', {
+    path: req.path,
+    timestamp: timestamp,
+    provided: signature.substring(0, 16) + '...',
+    expected: expectedSignature.substring(0, 16) + '...',
+    match: signaturesMatch,
+    providedLength: signature.length,
+    expectedLength: expectedSignature.length,
+  });
+
+  if (!signaturesMatch) {
     console.warn('[HMAC] Invalid signature', {
       path: req.path,
       provided: signature.substring(0, 8) + '...',
+      expected: expectedSignature.substring(0, 8) + '...',
+      timestamp: timestamp,
     });
 
     return res.status(401).json({ error: 'Invalid signature' });

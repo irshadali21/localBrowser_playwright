@@ -41,7 +41,7 @@ app.get('/', (req, res) => {
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, async () => {
+const server = app.listen(PORT, async () => {
   console.log(`Playwright server running on port ${PORT}`);
   
   // Start automatic cleanup only for local storage (cloud storage doesn't need cleanup)
@@ -79,4 +79,27 @@ app.listen(PORT, async () => {
   } else {
     console.warn('[Startup] LARAVEL_INTERNAL_URL or LOCALBROWSER_SECRET not configured. Skipping handshake.');
   }
+
+  console.log(`[Startup] Server is ready to receive requests on port ${PORT}`);
+});
+
+// Handle server errors
+server.on('error', (error) => {
+  console.error('[Server] Error:', error.message);
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use`);
+    process.exit(1);
+  }
+});
+
+// Prevent process from exiting - keep the event loop active
+process.on('uncaughtException', (error) => {
+  console.error('[Process] Uncaught Exception:', error.message);
+  console.error(error.stack);
+  // Don't exit - allow the server to continue running
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Process] Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit - allow the server to continue running
 });
