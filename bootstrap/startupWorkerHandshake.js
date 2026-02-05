@@ -20,6 +20,7 @@ class StartupWorkerHandshake {
     this.logger = config.logger || console;
     this.maxRetries = config.maxRetries || 5;
     this.retryDelayMs = config.retryDelayMs || 3000;
+    this.requestTimeout = config.requestTimeout || 30000; // 30 second timeout
   }
 
   /**
@@ -34,11 +35,13 @@ class StartupWorkerHandshake {
 
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        const response = await this._callRequestWork();
-
+        let response = await this._callRequestWork();
+        
+        // Parse JSON if response is a string
         if (typeof response === 'string') {
           response = JSON.parse(response);
         }
+        
         this.logger.info('[StartupWorkerHandshake] response', response);
 
         if (response.tasks && response.tasks.length > 0) {
@@ -102,6 +105,7 @@ class StartupWorkerHandshake {
           'X-Signature': signature,
           'X-Timestamp': timestamp.toString(),
         },
+        timeout: this.requestTimeout, // Request timeout
         // Disable SSL verification in development
         ...(process.env.NODE_ENV === 'development' && { rejectUnauthorized: false }),
       };
@@ -126,6 +130,12 @@ class StartupWorkerHandshake {
             reject(new Error(`Failed to parse Laravel response: ${error.message}`));
           }
         });
+      });
+
+      // Set socket timeout
+      req.setTimeout(this.requestTimeout, () => {
+        req.destroy();
+        reject(new Error(`Request timeout after ${this.requestTimeout}ms`));
       });
 
       req.on('error', reject);

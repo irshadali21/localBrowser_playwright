@@ -2,6 +2,9 @@
 const crypto = require('crypto');
 const SIGNATURE_WINDOW_SECONDS = 300; // ±5 minutes
 
+// Debug mode: only log sensitive data in development
+const DEBUG_MODE = process.env.NODE_ENV === 'development' && process.env.HMAC_DEBUG === 'true';
+
 /**
  * HMAC Signature Verification Middleware
  * 
@@ -12,21 +15,23 @@ function verifySignature(req, res, next) {
   const signature = req.headers['x-signature'];
   const timestamp = req.headers['x-timestamp'];
 
-  console.log('[HMAC] Incoming request', {
-    path: req.path,
-    method: req.method,
-    signature: signature ? signature.substring(0, 16) + '...' : 'MISSING',
-    timestamp: timestamp,
-    allHeaders: Object.keys(req.headers).sort(),
-  });
+  if (DEBUG_MODE) {
+    console.log('[HMAC] Incoming request', {
+      path: req.path,
+      method: req.method,
+      hasSignature: !!signature,
+      timestamp: timestamp,
+    });
+  }
 
   if (!signature || !timestamp) {
-    console.warn('[HMAC] Missing signature headers', {
-      path: req.path,
-      hasSignature: !!signature,
-      hasTimestamp: !!timestamp,
-    });
-
+    if (DEBUG_MODE) {
+      console.warn('[HMAC] Missing signature headers', {
+        path: req.path,
+        hasSignature: !!signature,
+        hasTimestamp: !!timestamp,
+      });
+    }
     return res.status(401).json({ error: 'Missing HMAC headers' });
   }
 
@@ -34,13 +39,12 @@ function verifySignature(req, res, next) {
   const now = Math.floor(Date.now() / 1000);
   const ts = parseInt(timestamp, 10);
   if (isNaN(ts) || Math.abs(now - ts) > SIGNATURE_WINDOW_SECONDS) {
-    console.warn('[HMAC] Stale timestamp', {
-      path: req.path,
-      timestamp,
-      now,
-      diff: Math.abs(now - ts),
-    });
-
+    if (DEBUG_MODE) {
+      console.warn('[HMAC] Stale timestamp', {
+        path: req.path,
+        diff: Math.abs(now - ts),
+      });
+    }
     return res.status(401).json({ error: 'Timestamp expired' });
   }
 
@@ -51,11 +55,6 @@ function verifySignature(req, res, next) {
     return res.status(500).json({ error: 'Server misconfiguration' });
   }
 
-  console.log('[HMAC] Secret info', {
-    secretLength: secret.length,
-    secretPreview: secret.substring(0, 16) + '...',
-  });
-
   const expectedSignature = crypto
     .createHmac('sha256', secret)
     .update(timestamp.toString())
@@ -64,24 +63,16 @@ function verifySignature(req, res, next) {
   // Simple string comparison (signatures should always be same length hex strings)
   const signaturesMatch = expectedSignature === signature;
 
-  console.log('[HMAC] Signature verification', {
-    path: req.path,
-    timestamp: timestamp,
-    provided: signature.substring(0, 16) + '...',
-    expected: expectedSignature.substring(0, 16) + '...',
-    match: signaturesMatch,
-    providedLength: signature.length,
-    expectedLength: expectedSignature.length,
-  });
+  if (DEBUG_MODE) {
+    console.log('[HMAC] Signature verification', {
+      path: req.path,
+      match: signaturesMatch,
+      signatureLength: signature.length,
+    });
+  }
 
   if (!signaturesMatch) {
-    console.warn('[HMAC] Invalid signature', {
-      path: req.path,
-      provided: signature.substring(0, 8) + '...',
-      expected: expectedSignature.substring(0, 8) + '...',
-      timestamp: timestamp,
-    });
-
+    console.warn('[HMAC] Invalid signature for', req.path);
     return res.status(401).json({ error: 'Invalid signature' });
   }
 

@@ -59,10 +59,82 @@ const server = app.listen(PORT, async () => {
     console.log(`[Storage] Using ${storageType} storage - automatic cleanup is ${enableCleanup ? 'disabled (cloud mode)' : 'disabled'}`);
   }
 
+  // Start background task processor for database-backed task queue
+  if (process.env.ENABLE_TASK_PROCESSOR !== 'false') {
+    const TaskProcessor = require('./services/taskProcessor');
+    const TaskQueueService = require('./services/taskQueueService');
+    const TaskExecutor = require('./services/taskExecutor');
+    const ResultSubmitter = require('./services/resultSubmitter');
+    const browserHelper = require('./helpers/browserHelper');
+    
+    const taskQueueService = new TaskQueueService({ logger: console });
+    const taskExecutor = new TaskExecutor(browserHelper);
+    
+    let resultSubmitter = null;
+    if (process.env.LARAVEL_INTERNAL_URL && process.env.LOCALBROWSER_SECRET) {
+      resultSubmitter = new ResultSubmitter({
+        laravelUrl: process.env.LARAVEL_INTERNAL_URL,
+        secret: process.env.LOCALBROWSER_SECRET,
+      });
+    }
+    
+    const taskProcessor = new TaskProcessor({
+      taskQueueService,
+      taskExecutor,
+      resultSubmitter,
+      logger: console,
+      intervalMs: parseInt(process.env.TASK_PROCESSOR_INTERVAL_MS) || 5000,
+      maxConcurrent: parseInt(process.env.MAX_CONCURRENT_TASKS) || 3,
+    });
+    
+    taskProcessor.start();
+    console.log('[TaskProcessor] Background task processor started');
+    
+    // Start task maintenance worker (stuck task reset, cleanup)
+    const TaskMaintenanceWorker = require('./services/taskMaintenanceWorker');
+    const taskMaintenanceWorker = new TaskMaintenanceWorker({
+      taskQueueService,
+      logger: console,
+      stuckTaskIntervalMs: parseInt(process.env.STUCK_TASK_CHECK_INTERVAL_MS) || 300000, // 5 min
+      stuckTaskThresholdMinutes: parseInt(process.env.STUCK_TASK_THRESHOLD_MINUTES) || 30,
+      cleanupIntervalMs: parseInt(process.env.TASK_CLEANUP_INTERVAL_MS) || 3600000, // 1 hour
+      cleanupOlderThanDays: parseInt(process.env.TASK_CLEANUP_DAYS) || 7,
+    });
+    
+    taskMaintenanceWorker.start();
+    console.log('[TaskMaintenance] Task maintenance worker started');
+    
+    // Graceful shutdown
+    process.on('SIGTERM', () => {
+      console.log('[TaskProcessor] Received SIGTERM, stopping...');
+      taskProcessor.stop();
+      taskMaintenanceWorker.stop();
+    });
+    
+    process.on('SIGINT', () => {
+      console.log('[TaskProcessor] Received SIGINT, stopping...');
+      taskProcessor.stop();
+      taskMaintenanceWorker.stop();
+      process.exit(0);
+    });
+  } else {
+    console.log('[TaskProcessor] Background task processor disabled');
+  }
+
   // Execute startup worker handshake with Laravel
   // This signals that the worker is ready and fetches any pending tasks
   if (process.env.LARAVEL_INTERNAL_URL && process.env.LOCALBROWSER_SECRET) {
     try {
+      const TaskExecutor = require('./services/taskExecutor');
+      const ResultSubmitter = require('./services/resultSubmitter');
+      const browserHelper = require('./helpers/browserHelper');
+      
+      const taskExecutor = new TaskExecutor(browserHelper);
+      const resultSubmitter = new ResultSubmitter({
+        laravelUrl: process.env.LARAVEL_INTERNAL_URL,
+        secret: process.env.LOCALBROWSER_SECRET,
+      });
+      
       const handshake = new StartupWorkerHandshake({
         laravelUrl: process.env.LARAVEL_INTERNAL_URL,
         secret: process.env.LOCALBROWSER_SECRET,
@@ -72,6 +144,23 @@ const server = app.listen(PORT, async () => {
 
       const initialTasks = await handshake.execute();
       console.log(`[Startup] Worker handshake complete. ${initialTasks.length} task(s) assigned.`);
+      
+      // Process initial tasks asynchronously without blocking startup
+      if (initialTasks.length > 0) {
+        setImmediate(async () => {
+          console.log('[Startup] Processing initial tasks...');
+          for (const task of initialTasks) {
+            try {
+              const result = await taskExecutor.execute(task);
+              await resultSubmitter.submit(result);
+              console.log(`[Startup] Task ${task.id} completed successfully`);
+            } catch (error) {
+              console.error(`[Startup] Failed to process task ${task.id}:`, error.message);
+            }
+          }
+          console.log('[Startup] All initial tasks processed');
+        });
+      }
     } catch (error) {
       console.error('[Startup] Worker handshake failed:', error.message);
       // Continue anyway — allow worker to start

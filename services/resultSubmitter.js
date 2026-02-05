@@ -17,6 +17,7 @@ class ResultSubmitter {
     this.workerId = config.workerId || process.env.WORKER_ID || `${os.hostname()}:${process.pid}`;
     this.maxRetries = config.maxRetries || 3;
     this.retryDelayMs = config.retryDelayMs || 2000;
+    this.requestTimeout = config.requestTimeout || 30000; // 30 second timeout
 
     if (!this.laravelUrl || !this.secret) {
       throw new Error('LARAVEL_INTERNAL_URL and LOCALBROWSER_SECRET must be configured');
@@ -29,7 +30,12 @@ class ResultSubmitter {
    * @returns {Promise<Object>} Response from Laravel
    */
   async submit(result) {
-    console.log(`[ResultSubmitter] Submitting result for task ${result.task_id}`);
+    console.log(`[ResultSubmitter] Submitting result for task ${result.task_id}`, {
+      type: result.type,
+      status: result.success ? 'completed' : 'failed',
+      error: result.error || null,
+      result: result
+    });
 
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
@@ -47,7 +53,7 @@ class ResultSubmitter {
         });
 
         if (attempt < this.maxRetries) {
-          const delay = this.retryDelayMs * attempt; // Exponential backoff
+          const delay = this.retryDelayMs * Math.pow(2, attempt - 1); // Exponential backoff: 2s, 4s, 8s
           await new Promise(resolve => setTimeout(resolve, delay));
         } else {
           throw new Error(`Failed to submit task result after ${this.maxRetries} attempts: ${error.message}`);
@@ -73,9 +79,7 @@ class ResultSubmitter {
       worker_id: this.workerId.split(':')[0], // Just the simple worker ID
       processing_by: this.workerId, // Full hostname:pid for detailed tracking
     };
-console.error('[payload]', {
-              payload: payload
-            });
+
     const signature = crypto
       .createHmac('sha256', this.secret)
       .update(timestamp.toString())
@@ -96,6 +100,7 @@ console.error('[payload]', {
           'X-Signature': signature,
           'X-Timestamp': timestamp.toString(),
         },
+        timeout: this.requestTimeout, // Request timeout
         // Disable SSL verification in development
         ...(process.env.NODE_ENV === 'development' && { rejectUnauthorized: false }),
       };
@@ -114,12 +119,15 @@ console.error('[payload]', {
               body: data ? JSON.parse(data) : null,
             });
           } else {
-            console.error('[responce]', {
-              res: res
-            });
             reject(new Error(`Laravel returned ${res.statusCode}: ${data}`));
           }
         });
+      });
+
+      // Set socket timeout
+      req.setTimeout(this.requestTimeout, () => {
+        req.destroy();
+        reject(new Error(`Request timeout after ${this.requestTimeout}ms`));
       });
 
       req.on('error', reject);

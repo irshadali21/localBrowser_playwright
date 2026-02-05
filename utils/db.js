@@ -34,4 +34,34 @@ db.prepare(`
   )
 `).run();
 
+// Track browser automation tasks (Phase 2)
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS browser_tasks (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    url TEXT NOT NULL,
+    payload TEXT,
+    status TEXT DEFAULT 'pending',
+    result TEXT,
+    error TEXT,
+    worker_id TEXT,
+    processing_by TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    started_at TEXT,
+    completed_at TEXT,
+    duration_ms INTEGER
+  )
+`).run();
+
+// Create index for efficient task queries
+db.prepare(`
+  CREATE INDEX IF NOT EXISTS idx_browser_tasks_status 
+  ON browser_tasks(status, created_at)
+`).run();
+
+db.prepare(`
+  CREATE INDEX IF NOT EXISTS idx_browser_tasks_worker 
+  ON browser_tasks(worker_id, status)
+`).run();
+
 module.exports = db;

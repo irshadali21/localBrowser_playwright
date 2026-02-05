@@ -21,6 +21,19 @@ class TaskExecutor {
    * @returns {Promise<Object>} Result object
    */
   async execute(task) {
+    // Validate task structure
+    const validation = this._validateTask(task);
+    if (!validation.valid) {
+      console.error(`[TaskExecutor] Invalid task:`, validation.errors);
+      return {
+        task_id: task?.id || 'unknown',
+        type: task?.type || 'unknown',
+        success: false,
+        error: `Task validation failed: ${validation.errors.join(', ')}`,
+        executed_at: new Date().toISOString(),
+      };
+    }
+
     console.log(`[TaskExecutor] Starting task ${task.id}`, {
       type: task.type,
       url: task.url,
@@ -46,6 +59,41 @@ class TaskExecutor {
         executed_at: new Date().toISOString(),
       };
     }
+  }
+
+  /**
+   * Validate task structure
+   * @private
+   */
+  _validateTask(task) {
+    const errors = [];
+
+    if (!task || typeof task !== 'object') {
+      return { valid: false, errors: ['Task must be an object'] };
+    }
+
+    if (!task.id) {
+      errors.push('Missing required field: id');
+    }
+
+    if (!task.type) {
+      errors.push('Missing required field: type');
+    } else if (!['website_html', 'lighthouse_html'].includes(task.type)) {
+      errors.push(`Invalid task type: ${task.type}`);
+    }
+
+    if (!task.url) {
+      errors.push('Missing required field: url');
+    } else if (typeof task.url !== 'string') {
+      errors.push('URL must be a string');
+    } else if (!task.url.startsWith('http://') && !task.url.startsWith('https://')) {
+      errors.push('URL must start with http:// or https://');
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+    };
   }
 
   /**
@@ -143,7 +191,7 @@ class TaskExecutor {
     }
 
     try {
-      // Run Lighthouse audit
+      // Run Lighthouse audit with timeout protection
       const options = {
         logLevel: 'error', // Suppress verbose output
         output: 'json',
@@ -151,7 +199,15 @@ class TaskExecutor {
         ...payload?.lighthouseOptions,
       };
 
-      const runnerResult = await lighthouseFn(url, options);
+      // Wrap Lighthouse in a timeout promise
+      const lighthouseTimeout = payload?.timeout || 120000; // Default 2 minutes
+      const runnerResult = await Promise.race([
+        lighthouseFn(url, options),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error(`Lighthouse audit timeout after ${lighthouseTimeout}ms`)), lighthouseTimeout)
+        ),
+      ]);
+      
       const lhr = runnerResult?.lhr;
 
       if (!lhr) {

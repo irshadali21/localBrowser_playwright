@@ -1,6 +1,7 @@
 // controllers/internalController.js
 const crypto = require('crypto');
 const StartupWorkerHandshake = require('../bootstrap/startupWorkerHandshake');
+const db = require('../utils/db');
 
 /**
  * Internal API Controller
@@ -10,11 +11,13 @@ const StartupWorkerHandshake = require('../bootstrap/startupWorkerHandshake');
  */
 class InternalController {
   constructor(dependencies = {}) {
-    this.taskQueue = dependencies.taskQueue; // Job queue
     this.taskExecutor = dependencies.taskExecutor; // Task executor
     this.resultSubmitter = dependencies.resultSubmitter; // Result submitter
+    this.taskQueueService = dependencies.taskQueueService; // Task queue service
     this.logger = dependencies.logger || console; // Logger
     this.workerId = process.env.WORKER_ID || `worker-${process.pid}`;
+    this.isFetchingTasks = false; // Mutex for preventing concurrent task fetches
+    this.isProcessingTasks = false; // Mutex for preventing concurrent task processing
   }
 
   /**
@@ -40,7 +43,7 @@ class InternalController {
 
       console.log('[InternalController] Ping response sent');
 
-      // Asynchronously fetch tasks from Laravel
+      // Asynchronously fetch tasks from Laravel (with concurrency control)
       setImmediate(async () => {
         console.log('[InternalController] Starting async task fetch after ping');
         try {
@@ -68,11 +71,19 @@ class InternalController {
    */
   async _fetchTasksFromLaravel() {
     console.log('[InternalController] _fetchTasksFromLaravel START');
-
-    if (!process.env.LARAVEL_INTERNAL_URL || !process.env.LOCALBROWSER_SECRET) {
-      console.warn('[InternalController] Laravel integration not configured');
+    
+    // Concurrency control: prevent multiple simultaneous fetches
+    if (this.isFetchingTasks) {
+      console.log('[InternalController] Already fetching tasks, skipping duplicate request');
       return;
     }
+    
+    this.isFetchingTasks = true;
+
+      if (!process.env.LARAVEL_INTERNAL_URL || !process.env.LOCALBROWSER_SECRET) {
+        console.warn('[InternalController] Laravel integration not configured');
+        return;
+      }
 
     try {
       console.log('[InternalController] Creating handshake instance', {
@@ -99,40 +110,8 @@ class InternalController {
           count: tasks.length,
         });
 
-        // Process tasks asynchronously without blocking the response
-        setImmediate(async () => {
-          for (const laravelTask of tasks) {
-            try {
-              console.log('[InternalController] Processing Laravel task', {
-                laravelTaskId: laravelTask.id,
-                type: laravelTask.type,
-              });
-
-              // Execute task using TaskExecutor
-              const result = await this.taskExecutor.execute(laravelTask);
-
-              console.log('[InternalController] Task execution completed', {
-                taskId: laravelTask.id,
-                success: result.success,
-              });
-
-              // Submit result back to Laravel
-              if (this.resultSubmitter) {
-                await this.resultSubmitter.submit(result);
-              }
-            } catch (error) {
-              console.error('[InternalController] Failed to process task', {
-                taskId: laravelTask.id,
-                error: error.message,
-                stack: error.stack,
-              });
-            }
-          }
-
-          console.log('[InternalController] All tasks processed', {
-            count: tasks.length,
-          });
-        });
+        // Process tasks asynchronously without blocking (with concurrency control)
+        await this._processTasks(tasks);
       } else {
         console.log('[InternalController] No tasks returned from Laravel');
       }
@@ -141,9 +120,97 @@ class InternalController {
         error: error.message,
         stack: error.stack,
       });
+    } finally {
+      this.isFetchingTasks = false;
+      console.log('[InternalController] _fetchTasksFromLaravel END');
+    }
+  }
+
+  /**
+   * Process tasks with concurrency control
+   * @private
+   */
+  async _processTasks(tasks) {
+    // Check if already processing to prevent concurrent operations
+    if (this.isProcessingTasks) {
+      console.warn('[InternalController] Already processing tasks, queueing new batch');
+      // In future, could queue these tasks instead of dropping
+      return;
     }
 
-    console.log('[InternalController] _fetchTasksFromLaravel END');
+    this.isProcessingTasks = true;
+
+    try {
+      for (const laravelTask of tasks) {
+        try {
+          // Validate task structure before processing
+          if (!this._validateTask(laravelTask)) {
+            console.error('[InternalController] Invalid task structure', {
+              task: laravelTask,
+            });
+            continue;
+          }
+
+          console.log('[InternalController] Processing Laravel task', {
+            laravelTaskId: laravelTask.id,
+            type: laravelTask.type,
+          });
+
+          // Execute task using TaskExecutor
+          const result = await this.taskExecutor.execute(laravelTask);
+
+          console.log('[InternalController] Task execution completed', {
+            taskId: laravelTask.id,
+            success: result.success,
+          });
+
+          // Submit result back to Laravel
+          if (this.resultSubmitter) {
+            await this.resultSubmitter.submit(result);
+          }
+        } catch (error) {
+          console.error('[InternalController] Failed to process task', {
+            taskId: laravelTask.id,
+            error: error.message,
+            stack: error.stack,
+          });
+        }
+      }
+
+      console.log('[InternalController] All tasks processed', {
+        count: tasks.length,
+      });
+    } finally {
+      this.isProcessingTasks = false;
+    }
+  }
+
+  /**
+   * Validate task structure
+   * @private
+   */
+  _validateTask(task) {
+    if (!task || typeof task !== 'object') {
+      console.error('[InternalController] Task is not an object');
+      return false;
+    }
+
+    if (!task.id) {
+      console.error('[InternalController] Task missing required field: id');
+      return false;
+    }
+
+    if (!task.type) {
+      console.error('[InternalController] Task missing required field: type');
+      return false;
+    }
+
+    if (!task.url) {
+      console.error('[InternalController] Task missing required field: url');
+      return false;
+    }
+
+    return true;
   }
 
   /**
@@ -160,10 +227,8 @@ class InternalController {
         maxTasks: MAX_TASKS,
       });
 
-      // Fetch queued tasks from database
-      // In Phase 2, this will be replaced with actual database queries
-      // For now, we return placeholder logic
-      const tasks = await this._getQueuedTasks(MAX_TASKS);
+      // Use TaskQueueService to fetch queued tasks
+      const tasks = await this.taskQueueService.getPendingTasks(MAX_TASKS);
 
       if (tasks.length === 0) {
         this.logger.info('[InternalController] No tasks available', {
@@ -177,7 +242,7 @@ class InternalController {
         });
       }
 
-      // Mark tasks as "processing" in database
+      // Mark tasks as processing in database
       await this._markTasksProcessing(tasks);
 
       this.logger.info('[InternalController] Returning tasks to worker', {
@@ -254,13 +319,37 @@ class InternalController {
   };
 
   /**
-   * Get queued tasks from Laravel (via HTTP)
+   * Get queued tasks from database (using TaskQueueService)
    * @private
    */
   async _getQueuedTasks(limit) {
-    // Phase 1: Placeholder returning empty array
-    // Phase 2: Call Laravel API or use job queue
-    return [];
+    if (!this.taskQueueService) {
+      this.logger.warn('[InternalController] TaskQueueService not available, using database directly');
+      try {
+        const stmt = db.prepare(`
+          SELECT id, type, url, payload, created_at
+          FROM browser_tasks
+          WHERE status = 'pending'
+          ORDER BY created_at ASC
+          LIMIT ?
+        `);
+        
+        const rows = stmt.all(limit);
+        
+        return rows.map(row => ({
+          id: row.id,
+          type: row.type,
+          url: row.url,
+          payload: row.payload ? JSON.parse(row.payload) : {},
+          created_at: row.created_at,
+        }));
+      } catch (error) {
+        this.logger.error('[InternalController] Failed to get queued tasks:', error);
+        return [];
+      }
+    }
+    
+    return await this.taskQueueService.getPendingTasks(limit);
   }
 
   /**
@@ -268,9 +357,30 @@ class InternalController {
    * @private
    */
   async _markTasksProcessing(tasks) {
-    // Phase 1: Placeholder
-    // Phase 2: Update leadcenter_browser_tasks SET status='processing' WHERE id IN (...)
-    return;
+    try {
+      const taskIds = tasks.map(t => t.id);
+      const placeholders = taskIds.map(() => '?').join(',');
+      
+      const stmt = db.prepare(`
+        UPDATE browser_tasks
+        SET status = 'processing',
+            started_at = datetime('now'),
+            worker_id = ?,
+            processing_by = ?
+        WHERE id IN (${placeholders})
+      `);
+      
+      const processingBy = `${require('os').hostname()}:${process.pid}`;
+      stmt.run(this.workerId, processingBy, ...taskIds);
+      
+      this.logger.info('[InternalController] Marked tasks as processing', {
+        count: taskIds.length,
+        workerId: this.workerId,
+      });
+    } catch (error) {
+      this.logger.error('[InternalController] Failed to mark tasks as processing:', error);
+      throw error;
+    }
   }
 
   /**
@@ -278,9 +388,42 @@ class InternalController {
    * @private
    */
   async _updateTaskResult(taskResult) {
-    // Phase 1: Placeholder
-    // Phase 2: Update leadcenter_browser_tasks SET result=..., status='browser_complete' WHERE id=...
-    return;
+    try {
+      const stmt = db.prepare(`
+        UPDATE browser_tasks
+        SET status = ?,
+            result = ?,
+            error = ?,
+            completed_at = ?,
+            duration_ms = ?,
+            worker_id = ?,
+            processing_by = ?
+        WHERE id = ?
+      `);
+      
+      const status = taskResult.success ? 'completed' : 'failed';
+      const result = taskResult.result ? JSON.stringify(taskResult.result) : null;
+      const error = taskResult.error || null;
+      
+      stmt.run(
+        status,
+        result,
+        error,
+        taskResult.executed_at,
+        taskResult.duration_ms || 0,
+        taskResult.worker_id || this.workerId,
+        taskResult.processing_by || `${require('os').hostname()}:${process.pid}`,
+        taskResult.task_id
+      );
+      
+      this.logger.info('[InternalController] Updated task result', {
+        taskId: taskResult.task_id,
+        status,
+      });
+    } catch (error) {
+      this.logger.error('[InternalController] Failed to update task result:', error);
+      throw error;
+    }
   }
 
   /**
@@ -288,9 +431,78 @@ class InternalController {
    * @private
    */
   async _notifyLaravelOfResult(taskId) {
-    // Phase 1: Placeholder
-    // Phase 2: POST to Laravel /internal/task-complete endpoint to trigger ProcessBrowserResult job
-    return;
+    // Only notify Laravel if we have the configuration
+    if (!process.env.LARAVEL_INTERNAL_URL || !process.env.LOCALBROWSER_SECRET) {
+      this.logger.warn('[InternalController] Cannot notify Laravel - not configured');
+      return;
+    }
+
+    try {
+      const crypto = require('crypto');
+      const http = require('http');
+      const https = require('https');
+      
+      const timestamp = Math.floor(Date.now() / 1000);
+      const signature = crypto
+        .createHmac('sha256', process.env.LOCALBROWSER_SECRET)
+        .update(timestamp.toString())
+        .digest('hex');
+
+      const url = new URL('/internal/task-complete', process.env.LARAVEL_INTERNAL_URL);
+      const isHttps = url.protocol === 'https:';
+      const client = isHttps ? https : http;
+
+      const payload = JSON.stringify({
+        task_id: taskId,
+        worker_id: this.workerId,
+        timestamp,
+      });
+
+      const options = {
+        hostname: url.hostname,
+        port: url.port,
+        path: url.pathname,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Signature': signature,
+          'X-Timestamp': timestamp.toString(),
+          'Content-Length': Buffer.byteLength(payload),
+        },
+        timeout: 10000,
+        ...(process.env.NODE_ENV === 'development' && { rejectUnauthorized: false }),
+      };
+
+      await new Promise((resolve, reject) => {
+        const req = client.request(options, (res) => {
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => {
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              this.logger.info('[InternalController] Laravel notified successfully', { taskId });
+              resolve();
+            } else {
+              reject(new Error(`Laravel returned ${res.statusCode}: ${data}`));
+            }
+          });
+        });
+
+        req.setTimeout(10000, () => {
+          req.destroy();
+          reject(new Error('Request timeout'));
+        });
+
+        req.on('error', reject);
+        req.write(payload);
+        req.end();
+      });
+    } catch (error) {
+      this.logger.error('[InternalController] Failed to notify Laravel:', {
+        taskId,
+        error: error.message,
+      });
+      // Don't throw - notification failure shouldn't break task processing
+    }
   }
 }
 
