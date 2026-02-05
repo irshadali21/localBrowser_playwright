@@ -4,23 +4,8 @@ const router = express.Router();
 const InternalController = require('../controllers/internalController');
 const TaskExecutor = require('../services/taskExecutor');
 const ResultSubmitter = require('../services/resultSubmitter');
-const { getConfiguredPage } = require('../utils/pageFactory');
+const browserHelper = require('../helpers/browserHelper');
 const hmacSignature = require('../middleware/hmacSignature');
-
-// Create a simple browser helper that TaskExecutor expects
-const browserHelper = {
-  launchBrowser: async () => {
-    // Return an object that mimics a browser with newPage() method
-    const page = await getConfiguredPage();
-    return {
-      newPage: async () => page,
-      close: async () => {
-        // Pages are managed by pageManager, so we don't close them here
-        // Just ensure cleanup happens through the page's own cleanup
-      }
-    };
-  }
-};
 
 // Initialize dependencies
 const taskExecutor = new TaskExecutor(browserHelper);

@@ -1,6 +1,4 @@
 // services/taskExecutor.js
-const path = require('path');
-const fs = require('fs').promises;
 
 /**
  * Task Executor Service
@@ -58,40 +56,26 @@ class TaskExecutor {
     const startTime = Date.now();
     const { url, payload } = task;
 
-    const browser = await this.browserHelper.launchBrowser();
-
     try {
-      const page = await browser.newPage();
-      
-      // Set viewport per payload config
-      if (payload?.viewport) {
-        await page.setViewportSize(payload.viewport);
-      }
+      // Use browserHelper.visitUrl which handles navigation, Cloudflare, and file storage
+      const options = {
+        waitUntil: payload?.waitUntil || 'networkidle',
+        timeout: payload?.timeout || 60000,
+        saveToFile: true,
+        returnHtml: false,  // Return file metadata, not raw HTML
+        handleCloudflare: payload?.handleCloudflare !== false,
+      };
 
-      // Navigate to URL
-      await page.goto(url, { waitUntil: 'networkidle' });
-
-      // Get page HTML
-      const html = await page.content();
-
-      // Get page title and meta
-      const title = await page.title();
-      const meta = await page.evaluate(() => {
-        const metaTags = Array.from(document.querySelectorAll('meta'));
-        return metaTags.map(tag => ({
-          name: tag.getAttribute('name') || tag.getAttribute('property'),
-          content: tag.getAttribute('content'),
-        }));
-      });
-
-      await page.close();
+      // visitUrl returns file metadata (fileId, downloadUrl, viewUrl, etc.)
+      const fileMetadata = await this.browserHelper.visitUrl(url, options);
 
       const duration = Date.now() - startTime;
 
       console.log(`[TaskExecutor] website_html task ${task.id} completed`, {
         url,
         duration: `${duration}ms`,
-        htmlSize: html.length,
+        fileId: fileMetadata.fileId,
+        storageType: fileMetadata.storageType,
       });
 
       return {
@@ -99,17 +83,25 @@ class TaskExecutor {
         type: 'website_html',
         success: true,
         result: {
-          url,
-          title,
-          html,
-          meta,
+          ...fileMetadata,
           timestamp: new Date().toISOString(),
         },
         executed_at: new Date().toISOString(),
         duration_ms: duration,
       };
-    } finally {
-      await browser.close();
+    } catch (error) {
+      console.error(`[TaskExecutor] website_html task ${task.id} failed:`, error);
+      
+      const duration = Date.now() - startTime;
+
+      return {
+        task_id: task.id,
+        type: 'website_html',
+        success: false,
+        error: error.message,
+        executed_at: new Date().toISOString(),
+        duration_ms: duration,
+      };
     }
   }
 
