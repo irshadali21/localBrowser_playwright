@@ -60,11 +60,12 @@ async function googleSearch(query) {
 async function visitUrl(url, options = {}) {
   const page = await getBrowserPage();
   const {
-    waitUntil = 'networkidle',  // Wait for all network requests to finish
+    waitUntil = 'domcontentloaded',  // Changed from 'networkidle' - more reliable for most sites
     timeout = 60000,
     saveToFile = true,
     returnHtml = false,  // If false, returns file metadata; if true, returns HTML directly
-    handleCloudflare = true  // Enable Cloudflare handling by default
+    handleCloudflare = true,  // Enable Cloudflare handling by default
+    useProgressiveRetry = true  // Enable progressive retry for navigation timeouts
   } = options;
 
   let finalUrl = url;
@@ -75,7 +76,8 @@ async function visitUrl(url, options = {}) {
       waitUntil,
       timeout,
       cfTimeout: 30000,
-      humanDelay: true
+      humanDelay: true,
+      useProgressiveRetry
     });
 
     if (result.blocked) {

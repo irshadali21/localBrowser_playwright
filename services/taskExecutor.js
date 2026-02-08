@@ -107,11 +107,12 @@ class TaskExecutor {
     try {
       // Use browserHelper.visitUrl which handles navigation, Cloudflare, and file storage
       const options = {
-        waitUntil: payload?.waitUntil || 'networkidle',
+        waitUntil: payload?.waitUntil || 'domcontentloaded',  // Changed from 'networkidle' for better reliability
         timeout: payload?.timeout || 60000,
         saveToFile: true,
         returnHtml: false,  // Return file metadata, not raw HTML
         handleCloudflare: payload?.handleCloudflare !== false,
+        useProgressiveRetry: payload?.useProgressiveRetry !== false,  // Enable progressive retry by default
       };
 
       // visitUrl returns file metadata (fileId, downloadUrl, viewUrl, etc.)

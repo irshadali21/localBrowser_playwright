@@ -57,7 +57,7 @@ async function waitForCloudflareChallenge(page, options = {}) {
 }
 
 /**
- * Navigates to URL with Cloudflare handling
+ * Navigates to URL with Cloudflare handling and progressive retry strategy
  * @param {Page} page - Playwright page object
  * @param {string} url - Target URL
  * @param {Object} options - Navigation and Cloudflare options
@@ -69,71 +69,103 @@ async function gotoWithCloudflare(page, url, options = {}) {
     timeout = 60000,
     cfTimeout = 30000,
     humanDelay = true,
+    useProgressiveRetry = true,  // Enable progressive retry strategy
   } = options;
 
-  try {
-    // Add random delay before navigation (simulate human behavior)
-    if (humanDelay) {
-      const delay = Math.floor(Math.random() * 2000) + 1000; // 1-3 seconds
-      await page.waitForTimeout(delay);
-    }
+  // Progressive retry strategy: try stricter conditions first, then relax
+  const retryStrategies = useProgressiveRetry ? [
+    { waitUntil: 'networkidle', timeout: Math.min(30000, timeout) },
+    { waitUntil: 'load', timeout: Math.min(30000, timeout) },
+    { waitUntil: 'domcontentloaded', timeout: Math.min(30000, timeout) },
+  ] : [{ waitUntil, timeout }];
 
-    // Navigate to the page (Playwright automatically follows redirects)
-    const response = await page.goto(url, { 
-      waitUntil, 
-      timeout 
-    });
+  let lastError = null;
 
-    // Wait a moment for any client-side redirects (JavaScript redirects)
-    await page.waitForTimeout(1000);
+  for (let i = 0; i < retryStrategies.length; i++) {
+    const strategy = retryStrategies[i];
     
-    // Get the final URL after all redirects
-    const finalUrl = page.url();
-    
-    if (finalUrl !== url) {
-      console.log(`[Cloudflare] Redirected: ${url} → ${finalUrl}`);
-    }
-
-    // Check if we hit Cloudflare
-    const isChallenge = await isCloudflareChallenge(page);
-    
-    if (isChallenge) {
-      const passed = await waitForCloudflareChallenge(page, { timeout: cfTimeout });
-      
-      return {
-        success: passed,
-        blocked: !passed,
-        response,
-        finalUrl: page.url(),
-        cloudflareEncountered: true,
-      };
-    }
-
-    return {
-      success: true,
-      blocked: false,
-      response,
-      finalUrl,
-      cloudflareEncountered: false,
-    };
-
-  } catch (err) {
-    console.error('[Cloudflare] Navigation error:', err.message);
-    
-    // Check if we're on a Cloudflare block page despite the error
     try {
-      const isBlocked = await isCloudflareChallenge(page);
+      console.log(`[Cloudflare] Navigation attempt ${i + 1}/${retryStrategies.length}:`, {
+        url,
+        waitUntil: strategy.waitUntil,
+        timeout: strategy.timeout
+      });
+
+      // Add random delay before navigation (simulate human behavior)
+      if (humanDelay && i === 0) {  // Only delay on first attempt
+        const delay = Math.floor(Math.random() * 2000) + 1000; // 1-3 seconds
+        await page.waitForTimeout(delay);
+      }
+
+      // Navigate to the page (Playwright automatically follows redirects)
+      const response = await page.goto(url, { 
+        waitUntil: strategy.waitUntil, 
+        timeout: strategy.timeout 
+      });
+
+      // Wait a moment for any client-side redirects (JavaScript redirects)
+      await page.waitForTimeout(1000);
       
-      throw {
-        ...err,
-        cloudflareBlocked: isBlocked,
-        finalUrl: page.url(),
+      // Get the final URL after all redirects
+      const finalUrl = page.url();
+      
+      if (finalUrl !== url) {
+        console.log(`[Cloudflare] Redirected: ${url} → ${finalUrl}`);
+      }
+
+      // Check if we hit Cloudflare
+      const isChallenge = await isCloudflareChallenge(page);
+      
+      if (isChallenge) {
+        const passed = await waitForCloudflareChallenge(page, { timeout: cfTimeout });
+        
+        return {
+          success: passed,
+          blocked: !passed,
+          response,
+          finalUrl: page.url(),
+          cloudflareEncountered: true,
+        };
+      }
+
+      // Success! Return the result
+      console.log(`[Cloudflare] Navigation successful with strategy: ${strategy.waitUntil}`);
+      return {
+        success: true,
+        blocked: false,
+        response,
+        finalUrl,
+        cloudflareEncountered: false,
       };
-    } catch (checkErr) {
-      // If we can't even check the page, just throw the original error
-      throw err;
+
+    } catch (err) {
+      lastError = err;
+      console.error(`[Cloudflare] Navigation attempt ${i + 1} failed:`, err.message);
+      
+      // If this isn't the last retry, continue to next strategy
+      if (i < retryStrategies.length - 1) {
+        console.log(`[Cloudflare] Retrying with next strategy...`);
+        continue;
+      }
+      
+      // Last attempt failed, check if we're on a Cloudflare block page
+      try {
+        const isBlocked = await isCloudflareChallenge(page);
+        
+        throw {
+          ...err,
+          cloudflareBlocked: isBlocked,
+          finalUrl: page.url(),
+        };
+      } catch (checkErr) {
+        // If we can't even check the page, just throw the original error
+        throw lastError;
+      }
     }
   }
+
+  // If we get here, all retries failed
+  throw lastError;
 }
 
 /**

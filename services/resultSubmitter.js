@@ -90,6 +90,8 @@ class ResultSubmitter {
       const isHttps = url.protocol === 'https:';
       const client = isHttps ? https : http;
 
+      console.log(`[ResultSubmitter] Submitting to: ${url.href}`);
+
       const options = {
         hostname: url.hostname,
         port: url.port,
@@ -99,13 +101,14 @@ class ResultSubmitter {
           'Content-Type': 'application/json',
           'X-Signature': signature,
           'X-Timestamp': timestamp.toString(),
+          'Accept': 'application/json',
         },
         timeout: this.requestTimeout, // Request timeout
         // Disable SSL verification in development
         ...(process.env.NODE_ENV === 'development' && { rejectUnauthorized: false }),
       };
 
-      const req = client.request(options, (res) => {
+      const handleResponse = (res) => {
         let data = '';
 
         res.on('data', chunk => {
@@ -113,6 +116,21 @@ class ResultSubmitter {
         });
 
         res.on('end', () => {
+          // Handle redirects
+          if (res.statusCode >= 300 && res.statusCode < 400) {
+            const redirectUrl = res.headers.location;
+            console.error(`[ResultSubmitter] Unexpected redirect (${res.statusCode}) to: ${redirectUrl}`);
+            console.error('[ResultSubmitter] This usually means:');
+            console.error('  1. The Laravel endpoint /internal/task-result does not exist');
+            console.error('  2. CSRF middleware is interfering (add route to api.php or exclude from CSRF)');
+            console.error('  3. Authentication middleware is blocking the request');
+            console.error('  4. LARAVEL_INTERNAL_URL in .env is incorrect');
+            console.error(`[ResultSubmitter] Current LARAVEL_INTERNAL_URL: ${this.laravelUrl}`);
+            
+            reject(new Error(`Laravel returned redirect ${res.statusCode} to ${redirectUrl}. Check Laravel routes and middleware.`));
+            return;
+          }
+
           if (res.statusCode >= 200 && res.statusCode < 300) {
             resolve({
               statusCode: res.statusCode,
@@ -122,7 +140,9 @@ class ResultSubmitter {
             reject(new Error(`Laravel returned ${res.statusCode}: ${data}`));
           }
         });
-      });
+      };
+
+      const req = client.request(options, handleResponse);
 
       // Set socket timeout
       req.setTimeout(this.requestTimeout, () => {
