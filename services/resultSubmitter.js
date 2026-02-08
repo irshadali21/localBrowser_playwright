@@ -72,13 +72,21 @@ class ResultSubmitter {
       task_id: result.task_id,
       type: result.type,
       status: result.success ? 'completed' : 'failed',
-      result: result.result || null,
-      error: result.error || null,
       executed_at: result.executed_at,
       duration_ms: result.duration_ms || 0,
       worker_id: this.workerId.split(':')[0], // Just the simple worker ID
       processing_by: this.workerId, // Full hostname:pid for detailed tracking
     };
+
+    // Only include result if it exists and is not null
+    if (result.result != null) {
+      payload.result = result.result;
+    }
+
+    // Only include error if it exists and is not null
+    if (result.error != null) {
+      payload.error = result.error;
+    }
 
     const signature = crypto
       .createHmac('sha256', this.secret)
