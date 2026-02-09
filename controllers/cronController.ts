@@ -1,15 +1,62 @@
-// controllers/cronController.js
-const db = require('../utils/db');
-const { getBrowserContext } = require('../utils/pageFactory');
-const { getPageById } = require('../utils/pageManager');
-const { logErrorToDB } = require('../utils/errorLogger');
+/**
+ * Cron Controller - TypeScript migration
+ */
+
+import type { Request, Response, NextFunction } from 'express';
+import db from '../utils/db';
+import { getBrowserContext } from '../utils/pageFactory';
+import { getPageById } from '../utils/pageManager';
+import { logErrorToDB } from '../utils/errorLogger';
+
+/**
+ * Cleanup result interface
+ */
+interface CleanupResult {
+  totalPages: number;
+  activePagesInDB: number;
+  threshold: number;
+  action: string;
+  closedPages: Array<{
+    id: string | number;
+    type: string;
+    reason: string;
+    idleTimeMs?: number;
+  }>;
+  keptPages: Array<{
+    id: string | number;
+    type: string;
+    reason: string;
+    idleTimeMs?: number;
+    error?: string;
+  }>;
+  message?: string;
+  finalPageCount?: number;
+}
+
+/**
+ * Page stats interface
+ */
+interface PageStats {
+  totalBrowserPages: number;
+  activePagesInDB: number;
+  pages: Array<{
+    id: string | number;
+    type: string;
+    status: string;
+    last_used: string;
+    created_at: string;
+    idleTimeMs: number;
+    ageMs: number;
+  }>;
+  urls: string[];
+}
 
 /**
  * Cron endpoint to cleanup idle browser pages
  * Checks if there are more than 3 pages open
  * Closes pages that are idle (not being used)
  */
-async function cleanupPages(req, res, next) {
+export const cleanupPages = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const context = await getBrowserContext();
     const browserPages = context.pages();
@@ -17,10 +64,10 @@ async function cleanupPages(req, res, next) {
 
     // Get active pages from database
     const activePagesInDB = db.prepare(
-      'SELECT id, type, last_used FROM active_pages WHERE status = \'active\' ORDER BY last_used ASC'
-    ).all();
+      "SELECT id, type, last_used FROM active_pages WHERE status = 'active' ORDER BY last_used ASC"
+    ).all() as Array<{ id: number; type: string; last_used: string }>;
 
-    const result = {
+    const result: CleanupResult = {
       totalPages: browserPageCount,
       activePagesInDB: activePagesInDB.length,
       threshold: 3,
@@ -33,7 +80,8 @@ async function cleanupPages(req, res, next) {
     if (browserPageCount <= 3) {
       result.action = 'none';
       result.message = `Only ${browserPageCount} pages open, no cleanup needed`;
-      return res.json(result);
+      res.json(result);
+      return;
     }
 
     // Check each page to see if it's idle
@@ -49,7 +97,7 @@ async function cleanupPages(req, res, next) {
 
       if (!browserPage || browserPage.isClosed?.()) {
         // Page already closed, update DB
-        db.prepare('UPDATE active_pages SET status = \'closed\' WHERE id = ?').run(dbPage.id);
+        db.prepare("UPDATE active_pages SET status = 'closed' WHERE id = ?").run(dbPage.id);
         result.closedPages.push({
           id: dbPage.id,
           type: dbPage.type,
@@ -64,11 +112,10 @@ async function cleanupPages(req, res, next) {
         // Check if page is currently navigating
         const isLoading = await browserPage.evaluate(() => document.readyState !== 'complete');
         
-        // Check if page has pending network activity (rough check)
+        // Check if page has pending network activity (Rough check)
         const hasActiveConnections = await browserPage.evaluate(() => {
-          return performance.getEntriesByType('resource').some((r) => {
-            return r.responseEnd === 0; // Response not completed yet
-          });
+          const entries = performance.getEntriesByType('resource');
+          return entries.some((r) => (r as PerformanceResourceTiming).responseEnd === 0);
         });
 
         isBusy = isLoading || hasActiveConnections;
@@ -96,7 +143,7 @@ async function cleanupPages(req, res, next) {
         // Close idle page
         try {
           await browserPage.close();
-          db.prepare('UPDATE active_pages SET status = \'closed\' WHERE id = ?').run(dbPage.id);
+          db.prepare("UPDATE active_pages SET status = 'closed' WHERE id = ?").run(dbPage.id);
           result.closedPages.push({
             id: dbPage.id,
             type: dbPage.type,
@@ -104,12 +151,19 @@ async function cleanupPages(req, res, next) {
             idleTimeMs: idleTime,
           });
         } catch (err) {
-          logErrorToDB('CRON_CLEANUP_CLOSE_FAILED', err, '/cron/cleanup-pages', { pageId: dbPage.id });
+          logErrorToDB({
+            type: 'CRON_CLEANUP_CLOSE_FAILED',
+            message: (err as Error).message,
+            stack: (err as Error).stack,
+            route: '/cron/cleanup-pages',
+            input: { pageId: dbPage.id }
+          });
           result.keptPages.push({
             id: dbPage.id,
             type: dbPage.type,
             reason: 'close_failed',
-            error: err.message,
+            idleTimeMs: idleTime,
+            error: (err as Error).message,
           });
         }
       }
@@ -127,22 +181,28 @@ async function cleanupPages(req, res, next) {
     result.finalPageCount = context.pages().length;
     res.json(result);
   } catch (err) {
-    logErrorToDB('CRON_CLEANUP_FAILED', err, '/cron/cleanup-pages', {});
+    logErrorToDB({
+      type: 'CRON_CLEANUP_FAILED',
+      message: (err as Error).message,
+      stack: (err as Error).stack,
+      route: '/cron/cleanup-pages',
+      input: {}
+    });
     next(err);
   }
-}
+};
 
 /**
  * Health check endpoint to get current page statistics
  */
-async function getPageStats(req, res, next) {
+export const getPageStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const context = await getBrowserContext();
     const browserPages = context.pages();
 
     const activePagesInDB = db.prepare(
-      'SELECT id, type, status, last_used, created_at FROM active_pages WHERE status = \'active\' ORDER BY last_used DESC'
-    ).all();
+      "SELECT id, type, status, last_used, created_at FROM active_pages WHERE status = 'active' ORDER BY last_used DESC"
+    ).all() as Array<{ id: number; type: string; status: string; last_used: string; created_at: string }>;
 
     const now = Date.now();
     const pagesWithStats = activePagesInDB.map((p) => ({
@@ -151,19 +211,24 @@ async function getPageStats(req, res, next) {
       ageMs: now - new Date(p.created_at).getTime(),
     }));
 
-    res.json({
+    const result: PageStats = {
       totalBrowserPages: browserPages.length,
       activePagesInDB: activePagesInDB.length,
       pages: pagesWithStats,
       urls: browserPages.map((p) => p.url()),
-    });
+    };
+
+    res.json(result);
   } catch (err) {
-    logErrorToDB('CRON_STATS_FAILED', err, '/cron/stats', {});
+    logErrorToDB({
+      type: 'CRON_STATS_FAILED',
+      message: (err as Error).message,
+      stack: (err as Error).stack,
+      route: '/cron/stats',
+      input: {}
+    });
     next(err);
   }
-}
-
-module.exports = {
-  cleanupPages,
-  getPageStats,
 };
+
+export default { cleanupPages, getPageStats };

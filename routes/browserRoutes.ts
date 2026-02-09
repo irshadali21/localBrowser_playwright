@@ -1,7 +1,11 @@
-// routes/browserRoutes.js
-const express = require('express');
-const router = express.Router();
-const browserController = require('../controllers/browserController');
+/**
+ * Browser Routes - TypeScript migration
+ */
+
+import { Router } from 'express';
+import browserController from '../controllers/browserController';
+
+const router = Router();
 
 // POST /browser/execute
 router.post('/execute', browserController.execute);
@@ -21,4 +25,4 @@ router.get('/download/:fileId', browserController.download);
 // GET /browser/view/:fileId
 router.get('/view/:fileId', browserController.view);
 
-module.exports = router;
+export = router;

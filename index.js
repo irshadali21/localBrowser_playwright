@@ -1,4 +1,7 @@
 // index.js
+// Load TypeScript files using ts-node/register for development
+require('ts-node/register/transpile-only');
+
 const express = require('express');
 const app = express();
 const dotenv = require('dotenv');

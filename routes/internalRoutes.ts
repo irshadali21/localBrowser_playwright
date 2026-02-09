@@ -1,12 +1,16 @@
-// routes/internalRoutes.js
-const express = require('express');
-const router = express.Router();
-const InternalController = require('../controllers/internalController');
-const TaskExecutor = require('../services/taskExecutor');
-const ResultSubmitter = require('../services/resultSubmitter');
-const TaskQueueService = require('../services/taskQueueService');
-const browserHelper = require('../helpers/browserHelper');
-const hmacSignature = require('../middleware/hmacSignature');
+/**
+ * Internal Routes - TypeScript migration
+ */
+
+import { Router } from 'express';
+import InternalController from '../controllers/internalController';
+import TaskExecutor from '../services/taskExecutor';
+import ResultSubmitter from '../services/resultSubmitter';
+import TaskQueueService from '../services/taskQueueService';
+import browserHelper from '../helpers/browserHelper';
+import hmacSignature from '../middleware/hmacSignature';
+
+const router = Router();
 
 // Initialize dependencies
 const taskExecutor = new TaskExecutor(browserHelper);
@@ -16,14 +20,14 @@ const resultSubmitter = new ResultSubmitter({
 });
 const taskQueueService = new TaskQueueService({
   logger: console,
-  maxConcurrentTasks: parseInt(process.env.MAX_CONCURRENT_TASKS) || 3,
+  maxConcurrentTasks: parseInt(process.env.MAX_CONCURRENT_TASKS || '3'),
 });
 
-// Instantiate controller with dependencies
+// Instantiate controller with dependencies (cast to avoid type mismatches with JS modules)
 const internalController = new InternalController({
-  taskExecutor,
-  resultSubmitter,
-  taskQueueService,
+  taskExecutor: taskExecutor as unknown as InternalController['taskExecutor'],
+  resultSubmitter: resultSubmitter as unknown as InternalController['resultSubmitter'],
+  taskQueueService: taskQueueService as unknown as InternalController['taskQueueService'],
   logger: console,
 });
 
@@ -31,20 +35,16 @@ const internalController = new InternalController({
 router.use(hmacSignature);
 
 // POST /internal/ping
-// Laravel notifies Node that work is available
 router.post('/ping', internalController.ping);
 
 // POST /internal/request-work
-// Node requests available tasks
 router.post('/request-work', internalController.requestWork);
 
 // POST /internal/task-result
-// Node submits task result
 router.post('/task-result', internalController.submitResult);
 
 // GET /internal/queue/stats
-// Get queue statistics
-router.get('/queue/stats', async (req, res) => {
+router.get('/queue/stats', async (req: any, res: any) => {
   try {
     const stats = await taskQueueService.getStatistics();
     res.json({
@@ -53,19 +53,19 @@ router.get('/queue/stats', async (req, res) => {
       worker_id: process.env.WORKER_ID || `worker-${process.pid}`,
       timestamp: Math.floor(Date.now() / 1000),
     });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // POST /internal/queue/enqueue
-// Enqueue a new task
-router.post('/queue/enqueue', async (req, res) => {
+router.post('/queue/enqueue', async (req: any, res: any) => {
   try {
     const { tasks } = req.body;
     
     if (!tasks) {
-      return res.status(400).json({ error: 'tasks array required' });
+      res.status(400).json({ error: 'tasks array required' });
+      return;
     }
     
     const taskArray = Array.isArray(tasks) ? tasks : [tasks];
@@ -77,14 +77,13 @@ router.post('/queue/enqueue', async (req, res) => {
       count: taskIds.length,
       timestamp: Math.floor(Date.now() / 1000),
     });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // POST /internal/queue/cleanup
-// Clean up old tasks
-router.post('/queue/cleanup', async (req, res) => {
+router.post('/queue/cleanup', async (req: any, res: any) => {
   try {
     const { older_than_days = 7 } = req.body;
     const deleted = await taskQueueService.cleanupOldTasks(older_than_days);
@@ -94,14 +93,13 @@ router.post('/queue/cleanup', async (req, res) => {
       deleted,
       timestamp: Math.floor(Date.now() / 1000),
     });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // POST /internal/queue/reset-stuck
-// Reset stuck tasks
-router.post('/queue/reset-stuck', async (req, res) => {
+router.post('/queue/reset-stuck', async (req: any, res: any) => {
   try {
     const { stuck_after_minutes = 30 } = req.body;
     const reset = await taskQueueService.resetStuckTasks(stuck_after_minutes);
@@ -111,9 +109,9 @@ router.post('/queue/reset-stuck', async (req, res) => {
       reset,
       timestamp: Math.floor(Date.now() / 1000),
     });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
-module.exports = router;
+export = router;

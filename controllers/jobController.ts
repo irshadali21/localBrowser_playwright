@@ -1,7 +1,44 @@
-const crypto = require('crypto');
-const { enqueueJob } = require('../services/jobQueue');
+/**
+ * Job Controller - TypeScript migration
+ */
 
-exports.create = async (req, res, next) => {
+import type { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
+import { enqueueJob } from '../services/jobQueue';
+
+/**
+ * Target configuration
+ */
+interface JobTarget {
+  url: string;
+  metadata?: Record<string, unknown>;
+  lead?: Record<string, unknown>;
+}
+
+/**
+ * Parser configuration
+ */
+interface JobParser {
+  id?: string;
+  slug?: string;
+  mode: string;
+  definition?: Record<string, unknown>;
+}
+
+/**
+ * Job creation payload
+ */
+interface CreateJobPayload {
+  jobId?: string;
+  target: JobTarget;
+  parser: JobParser;
+  callbackUrl: string;
+}
+
+/**
+ * Create a new job
+ */
+export const create = async (req: Request<{}, {}, CreateJobPayload>, res: Response, next: NextFunction): Promise<void> => {
   try {
     console.log('[JobController] Received job creation request', {
       path: req.path,
@@ -14,17 +51,20 @@ exports.create = async (req, res, next) => {
 
     if (!target || typeof target.url !== 'string') {
       console.warn('[JobController] Invalid request: missing target.url');
-      return res.status(400).json({ error: 'Missing target.url' });
+      res.status(400).json({ error: 'Missing target.url' });
+      return;
     }
 
     if (!parser || typeof parser.mode !== 'string') {
       console.warn('[JobController] Invalid request: missing parser');
-      return res.status(400).json({ error: 'Missing parser definition' });
+      res.status(400).json({ error: 'Missing parser definition' });
+      return;
     }
 
     if (!callbackUrl) {
       console.warn('[JobController] Invalid request: missing callbackUrl');
-      return res.status(400).json({ error: 'Missing callbackUrl' });
+      res.status(400).json({ error: 'Missing callbackUrl' });
+      return;
     }
 
     const job = {
@@ -59,9 +99,11 @@ exports.create = async (req, res, next) => {
     res.status(202).json({ jobId: job.jobId, status: 'queued' });
   } catch (error) {
     console.error('[JobController] Error creating job', {
-      error: error.message,
-      stack: error.stack,
+      error: (error as Error).message,
+      stack: (error as Error).stack,
     });
     next(error);
   }
 };
+
+export default { create };

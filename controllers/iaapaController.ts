@@ -1,23 +1,49 @@
-// controllers/iaapaController.js
-const fs = require('fs');
-const path = require('path');
-const { requestPage, closePage } = require('../utils/pageManager');
+/**
+ * IAAPA Controller - TypeScript migration
+ * Handles scraping and downloading IAAPA expo exhibitor data
+ */
 
+import type { Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
+import { requestPage, closePage } from '../utils/pageManager';
+import type { SessionType } from '../types/browser';
 
-// small sleep helpers & delay config
-function sleep(ms) {
+/**
+ * Job metadata interface
+ */
+interface IaapaJob {
+  file: string;
+  total: number;
+  processed: number;
+  startedAt: number;
+  done: boolean;
+  error: string | null;
+  csvName: string | null;
+  csvPath: string | null;
+}
+
+// In-memory job registry: jobId -> metadata
+const jobs = new Map<string, IaapaJob>();
+
+/**
+ * Small sleep helper
+ */
+function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function randInt(min, max) {
+/**
+ * Random integer between min and max (inclusive)
+ */
+function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 /**
- * Returns a randomized delay (ms) between min and max, with small jitter.
- * Example usage: const d = randDelayMs(1000, 3000);
+ * Returns a randomized delay (ms) between min and max, with small jitter
  */
-function randDelayMs(min = 1000, max = 3000) {
+function randDelayMs(min = 1000, max = 3000): number {
   if (min >= max) return min;
   const base = randInt(min, max);
   // jitter ±10%
@@ -25,15 +51,19 @@ function randDelayMs(min = 1000, max = 3000) {
   return Math.max(0, base + jitter);
 }
 
-
-// ---------- small helpers ----------
-const mapRow = (cols, row) => {
-  const o = {};
+/**
+ * Map row columns to object
+ */
+function mapRow(cols: string[], row: unknown[]): Record<string, unknown> {
+  const o: Record<string, unknown> = {};
   cols.forEach((c, i) => (o[c] = row[i]));
   return o;
-};
+}
 
-async function gotoWithRetry(page, url, tries = 3, baseDelayMs = 1000) {
+/**
+ * Navigate to URL with retry logic
+ */
+async function gotoWithRetry(page: any, url: string, tries = 3, baseDelayMs = 1000): Promise<void> {
   for (let i = 0; i < tries; i++) {
     try {
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
@@ -48,21 +78,32 @@ async function gotoWithRetry(page, url, tries = 3, baseDelayMs = 1000) {
   }
 }
 
+/**
+ * Escape CSV value
+ */
+function esc(v: unknown): string {
+  const s = String(v ?? '').replace(/\r?\n/g, ' ').trim();
+  return /[",]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
 
-// in-memory job registry: jobId -> metadata
-const jobs = new Map();
+/**
+ * Helper to get string query param
+ */
+function getStringQueryParam(param: unknown): string {
+  if (typeof param === 'string') return param;
+  if (Array.isArray(param)) return param[0] || '';
+  return '';
+}
 
-// ---------- public endpoints (tiny, background-only) ----------
-
-// GET /iaapa/run-all?file=iaapaexpo25.json
-exports.runAll = async (req, res) => {
-
-
-
-
-  const file = (req.query.file || '').trim();
+/**
+ * Run all IAAPA scraping jobs
+ * GET /iaapa/run-all?file=iaapaexpo25.json
+ */
+export const runAll = async (req: Request, res: Response): Promise<void> => {
+  const file = getStringQueryParam(req.query.file).trim();
   if (!file || file.includes('..') || /[\\/]/.test(file)) {
-    return res.status(400).json({ error: 'Invalid file' });
+    res.status(400).json({ error: 'Invalid file' });
+    return;
   }
 
   const jobId = 'job_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
@@ -81,7 +122,7 @@ exports.runAll = async (req, res) => {
   setImmediate(() => runAllWorker(jobId).catch(err => {
     const j = jobs.get(jobId);
     if (j) {
-      j.error = err?.message || String(err);
+      j.error = err instanceof Error ? err.message : String(err);
       j.done = true;
       jobs.set(jobId, j);
     }
@@ -90,11 +131,17 @@ exports.runAll = async (req, res) => {
   res.json({ jobId });
 };
 
-// GET /iaapa/status?id=<jobId>
-exports.status = async (req, res) => {
-  const id = (req.query.id || '').trim();
+/**
+ * Get job status
+ * GET /iaapa/status?id=<jobId>
+ */
+export const status = async (req: Request, res: Response): Promise<void> => {
+  const id = getStringQueryParam(req.query.id).trim();
   const j = jobs.get(id);
-  if (!j) return res.status(404).json({ error: 'Not found' });
+  if (!j) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
   res.json({
     file: j.file,
     total: j.total,
@@ -105,26 +152,34 @@ exports.status = async (req, res) => {
   });
 };
 
-// GET /iaapa/download-csv?name=<csvName>
-exports.downloadCsv = async (req, res) => {
-  const name = (req.query.name || '').replace(/[^a-zA-Z0-9._-]/g, '');
+/**
+ * Download CSV
+ * GET /iaapa/download-csv?name=<csvName>
+ */
+export const downloadCsv = async (req: Request, res: Response): Promise<void> => {
+  const name = getStringQueryParam(req.query.name).replace(/[^a-zA-Z0-9._-]/g, '');
   // CSV is saved in the same folder as the JSON (Data/)
   const p = path.join(process.cwd(), 'Data', name);
-  if (!fs.existsSync(p)) return res.status(404).send('Not found');
+  if (!fs.existsSync(p)) {
+    res.status(404).send('Not found');
+    return;
+  }
   res.download(p, name);
 };
 
-// ---------- background worker ----------
-async function runAllWorker(jobId) {
+/**
+ * Background worker for scraping IAAPA data
+ */
+async function runAllWorker(jobId: string): Promise<void> {
   const j = jobs.get(jobId);
   if (!j) return;
 
-  // --- configuration: tweak these values to taste ---
+  // Configuration: tweak these values to taste
   const RATE_LIMIT = {
-    minDelayMs: 800,     // minimum delay between requests
-    maxDelayMs: 2200,    // maximum delay between requests
-    longPauseEvery: 50,  // take a longer pause every N requests
-    longPauseMs: 10_000, // long pause duration (ms)
+    minDelayMs: 800,      // minimum delay between requests
+    maxDelayMs: 2200,     // maximum delay between requests
+    longPauseEvery: 50,   // take a longer pause every N requests
+    longPauseMs: 10_000,  // long pause duration (ms)
   };
 
   const dataDir = path.join(process.cwd(), 'Data');
@@ -137,8 +192,8 @@ async function runAllWorker(jobId) {
   j.total = ROWS.length;
   jobs.set(jobId, j);
 
-  // open one Playwright page
-  const { page, id: pageId } = await requestPage('iaapa');
+  // Open one Playwright page
+  const { page, id: pageId } = await requestPage('iaapa' as SessionType);
 
   // CSV path beside the source JSON
   const base = j.file.replace(/\.json$/i, '') || 'iaapa';
@@ -174,26 +229,22 @@ async function runAllWorker(jobId) {
     ].join(',') + '\n'
   );
 
-  const esc = (v) => {
-    const s = String(v ?? '').replace(/\r?\n/g, ' ').trim();
-    return /[",]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-
   try {
     for (let i = 0; i < ROWS.length; i++) {
       const row = mapRow(COLUMNS, ROWS[i]);
       const exhid = String(row.EXHID || row.exhid || '').trim();
       const exhname = String(row.EXHNAME || row.exhname || '').trim();
       if (!exhid) {
-        j.processed++; jobs.set(jobId, j); continue;
+        j.processed++; 
+        jobs.set(jobId, j); 
+        continue;
       }
 
       // RATE-LIMIT: randomized delay to avoid throttling / IP blocking
-      // If you want to skip the initial delay on first item, you can check i>0
       const delayMs = randDelayMs(RATE_LIMIT.minDelayMs, RATE_LIMIT.maxDelayMs);
       await sleep(delayMs);
 
-      // occasionally take a longer break (helps avoid rate-limiter windows)
+      // occasionally take a longer break
       if (RATE_LIMIT.longPauseEvery > 0 && i > 0 && i % RATE_LIMIT.longPauseEvery === 0) {
         await sleep(RATE_LIMIT.longPauseMs + randInt(0, 2000));
       }
@@ -201,78 +252,77 @@ async function runAllWorker(jobId) {
       const url = `https://iaapaexpo25.mapyourshow.com/8_0/exhibitor/exhibitor-details.cfm?exhid=${encodeURIComponent(exhid)}`;
       await gotoWithRetry(page, url);
 
-      // --- scrape everything we need ---
+      // Scrape everything we need
       const data = await page.evaluate(() => {
-        const t = (el) => (el ? el.textContent.trim() : '');
+        const t = (el: Element | null) => (el ? el.textContent?.trim() : '');
 
-        // Description (robust against nesting)
+        // Description
         let description = '';
         const descArticle = document.querySelector('article.section--description');
         if (descArticle) {
           const p = descArticle.querySelector('p');
-          if (p) description = t(p);
+          if (p) description = t(p) || '';
         }
         if (!description) {
-          const aboutH2 = Array.from(document.querySelectorAll('h2')).find(h => /about/i.test(h.textContent));
+          const aboutH2 = Array.from(document.querySelectorAll('h2')).find(h => /about/i.test(h.textContent || ''));
           const p2 = aboutH2?.nextElementSibling?.querySelector?.('p');
-          if (p2) description = t(p2);
+          if (p2) description = t(p2) || '';
         }
 
         // Product Categories
-        let productCategories = [];
+        let productCategories: string[] = [];
         const productsArticle = document.querySelector('article.section--products');
         if (productsArticle) {
           productCategories = Array.from(productsArticle.querySelectorAll('a'))
-            .map(a => a.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean);
+            .map(a => a.textContent?.replace(/\s+/g, ' ').trim())
+            .filter(Boolean) as string[];
         }
 
-        // Booths (sidebar)
-        let booths = [];
+        // Booths
+        let booths: string[] = [];
         const sidebar = document.querySelector('aside.sidebar');
         if (sidebar) {
           booths = Array.from(sidebar.querySelectorAll('ul.list__icons a'))
-            .map(a => a.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean);
+            .map(a => a.textContent?.replace(/\s+/g, ' ').trim())
+            .filter(Boolean) as string[];
         }
 
-        // Socials & contact (within Company Information)
+        // Socials & contact
         const companyInfo = document.querySelector('article.section--contactinfo') || document.getElementById('js-vue-contactinfo');
         const links = companyInfo ? Array.from(companyInfo.querySelectorAll('a[href]')) : [];
 
-        // classify links
-        const pick = (pred) => (links.find(a => pred(a.getAttribute('href'))) || null);
-        const has = (pred) => !!pick(pred);
+        // Classify links
+        const pick = (pred: (href: string | null) => boolean) => (links.find(a => pred(a.getAttribute('href'))) || null);
+        const has = (pred: (href: string | null) => boolean) => !!pick(pred);
 
-        const isInsta = (h) => !!h && /instagram\.com/i.test(h);
-        const isFb = (h) => !!h && /facebook\.com/i.test(h);
-        const isTw = (h) => !!h && /(twitter\.com|x\.com)\//i.test(h);
-        const isLn = (h) => !!h && /linkedin\.com/i.test(h);
-        const isTel = (h) => !!h && /^tel:/i.test(h);
-        const isMail = (h) => !!h && /^mailto:/i.test(h);
+        const isInsta = (h: string | null) => !!h && /instagram\.com/i.test(h);
+        const isFb = (h: string | null) => !!h && /facebook\.com/i.test(h);
+        const isTw = (h: string | null) => !!h && /(twitter\.com|x\.com)\//i.test(h);
+        const isLn = (h: string | null) => !!h && /linkedin\.com/i.test(h);
+        const isTel = (h: string | null) => !!h && /^tel:/i.test(h);
+        const isMail = (h: string | null) => !!h && /^mailto:/i.test(h);
 
-        // first non-social http(s) link as website (best effort)
+        // First non-social http(s) link as website
         const websiteA = links.find(a => {
           const h = a.getAttribute('href') || '';
           return /^https?:\/\//i.test(h) && !isInsta(h) && !isFb(h) && !isTw(h) && !isLn(h);
         });
 
         const phoneA = links.find(a => isTel(a.getAttribute('href')));
-        // Fax sometimes not a tel link; look for text "Fax" nearby
         let faxValue = '';
         const faxNode = Array.from(companyInfo?.querySelectorAll('*') || []).find(n => /fax/i.test(n.textContent || ''));
         if (faxNode) {
           const tel = faxNode.querySelector('a[href^="tel:"]');
-          if (tel) faxValue = tel.getAttribute('href').replace(/^tel:/i, '');
+          if (tel) faxValue = tel.getAttribute('href')?.replace(/^tel:/i, '') || '';
         }
 
-        // build social/contact object
-        const websiteValue = websiteA ? websiteA.getAttribute('href') : '';
+        const websiteValue = websiteA ? websiteA.getAttribute('href') || '' : '';
         const instagramValue = (pick(isInsta)?.getAttribute('href')) || '';
         const facebookValue = (pick(isFb)?.getAttribute('href')) || '';
         const twitterValue = (pick(isTw)?.getAttribute('href')) || '';
         const linkedInValue = (pick(isLn)?.getAttribute('href')) || '';
-        const phoneValue = phoneA ? phoneA.getAttribute('href').replace(/^tel:/i, '') : '';
+        const phoneValue = phoneA ? phoneA.getAttribute('href')?.replace(/^tel:/i, '') || '' : '';
 
-        // booleans
         const hasWebsiteData = !!websiteValue;
         const hasTwitter = !!twitterValue;
         const hasLinkedIn = !!linkedInValue;
@@ -280,11 +330,8 @@ async function runAllWorker(jobId) {
         const hasInstagram = !!instagramValue;
         const hasPhone = !!phoneValue;
         const hasFax = !!faxValue;
-
-        // email sometimes appears
         const hasEmail = has(h => isMail(h));
 
-        // address presence (best effort: any address-like block)
         let hasAddressData = false;
         const addr = companyInfo?.querySelector('.column-wrapper') || companyInfo;
         if (addr) {
@@ -314,7 +361,7 @@ async function runAllWorker(jobId) {
         };
       });
 
-      // write CSV row
+      // Write CSV row
       ws.write([
         esc(exhid),
         esc(exhname),
@@ -345,7 +392,7 @@ async function runAllWorker(jobId) {
     }
 
     ws.end();
-    await new Promise(r => ws.on('close', r));
+    await new Promise<void>(resolve => ws.on('close', resolve));
 
     j.csvName = csvName;
     j.csvPath = csvPath;
@@ -353,10 +400,12 @@ async function runAllWorker(jobId) {
     jobs.set(jobId, j);
   } catch (err) {
     try { ws.end(); } catch { }
-    j.error = err?.message || String(err);
+    j.error = err instanceof Error ? err.message : String(err);
     j.done = true;
     jobs.set(jobId, j);
   } finally {
     try { closePage(pageId); } catch { }
   }
 }
+
+export default { runAll, status, downloadCsv };
