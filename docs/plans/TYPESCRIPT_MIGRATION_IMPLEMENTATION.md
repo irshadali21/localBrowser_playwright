@@ -1,12 +1,15 @@
 # TypeScript Migration Implementation Plan
 
 ## Overview
+
 Complete the remaining TypeScript migration tasks for LocalBrowser Playwright project, following the priorities outlined in `TYPESCRIPT_MIGRATION_STATUS.md`.
 
 ## Execution Order
 
 ### Phase 1: ESLint Configuration (HIGH PRIORITY)
+
 1. **Install TypeScript ESLint dependencies**
+
    ```bash
    npm install --save-dev @typescript-eslint/parser @typescript-eslint/eslint-plugin eslint-plugin-prettier eslint-config-prettier
    ```
@@ -24,7 +27,9 @@ Complete the remaining TypeScript migration tasks for LocalBrowser Playwright pr
    - Remove `continue-on-error: true` from ESLint step
 
 ### Phase 2: Test Coverage (HIGH PRIORITY)
+
 1. **Install Jest type definitions**
+
    ```bash
    npm install --save-dev @types/jest
    ```
@@ -48,6 +53,7 @@ Complete the remaining TypeScript migration tasks for LocalBrowser Playwright pr
    - Proper type annotations
 
 ### Phase 3: Documentation (MEDIUM PRIORITY)
+
 1. **Update README.md**
    - TypeScript setup instructions
    - Compilation process documentation
@@ -63,6 +69,7 @@ Complete the remaining TypeScript migration tasks for LocalBrowser Playwright pr
    - Generate API documentation
 
 ### Phase 4: Deprecation Cleanup (MEDIUM PRIORITY)
+
 1. **Verify TypeScript files work**
    - Run full test suite
    - Document any issues
@@ -82,6 +89,7 @@ Complete the remaining TypeScript migration tasks for LocalBrowser Playwright pr
 ## Key Files to Modify
 
 ### New Files to Create
+
 - `.eslintrc.js`
 - `.prettierrc`
 - `.lintstagedrc.js`
@@ -90,6 +98,7 @@ Complete the remaining TypeScript migration tasks for LocalBrowser Playwright pr
 - `plans/TYPESCRIPT_MIGRATION_IMPLEMENTATION.md`
 
 ### Files to Modify
+
 - `package.json` - Add dependencies, scripts
 - `.github/workflows/ci.yml` - Update lint enforcement
 - `README.md` - Add TypeScript documentation
@@ -98,6 +107,7 @@ Complete the remaining TypeScript migration tasks for LocalBrowser Playwright pr
 - 9 route test files - Create new
 
 ### Files to Delete
+
 - 9 legacy .js controller files
 - 9 legacy .js route files
 

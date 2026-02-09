@@ -8,6 +8,7 @@
 ### ✅ Security Issues Fixed (Issues #7-8)
 
 **HMAC Signature Middleware** ([middleware/hmacSignature.js](middleware/hmacSignature.js))
+
 - ✅ Removed all sensitive data logging (secrets, signature previews)
 - ✅ Added `DEBUG_MODE` flag for development-only verbose logging
 - ✅ Set via `NODE_ENV=development` and `HMAC_DEBUG=true`
@@ -16,12 +17,14 @@
 ### ✅ Phase 2 Database-Backed Task Management (Issue #13)
 
 **Database Schema** ([utils/db.js](utils/db.js))
+
 - ✅ Created `browser_tasks` table with full lifecycle tracking
 - ✅ Fields: id, type, url, payload, status, result, error, worker_id, processing_by, timestamps, duration
 - ✅ Indexed for efficient queries on status and worker_id
 - ✅ Supports task states: pending → processing → completed/failed
 
 **TaskQueueService** ([services/taskQueueService.js](services/taskQueueService.js)) - NEW
+
 - ✅ `enqueueTask(task)` - Add single task to queue
 - ✅ `enqueueBatch(tasks)` - Add multiple tasks efficiently
 - ✅ `getPendingTasks(limit)` - Get tasks ready for processing
@@ -32,6 +35,7 @@
 - ✅ `resetStuckTasks(minutes)` - Reset tasks stuck in processing state
 
 **InternalController Database Methods** ([controllers/internalController.js](controllers/internalController.js))
+
 - ✅ `_getQueuedTasks()` - Queries database for pending tasks
 - ✅ `_markTasksProcessing()` - Updates task status with worker info
 - ✅ `_updateTaskResult()` - Stores task results in database
@@ -104,6 +108,7 @@ POST /internal/queue/reset-stuck  # Reset stuck tasks
 ## 🔧 Configuration
 
 ### Required Environment Variables
+
 ```bash
 # Laravel Integration
 LARAVEL_INTERNAL_URL=https://your-laravel-app.com
@@ -200,21 +205,25 @@ curl http://localhost:5000/internal/queue/stats \
 ## 🛡️ Fault Tolerance Features
 
 ### Concurrency Control
+
 - ✅ Mutex flags prevent concurrent ping handlers
 - ✅ TaskProcessor limits parallel execution
 - ✅ Database transactions ensure consistency
 
 ### Timeout Protection
+
 - ✅ HTTP requests timeout after 30 seconds
 - ✅ Lighthouse audits timeout after 2 minutes
 - ✅ Task validation before processing
 
 ### Recovery Mechanisms
+
 - ✅ Stuck tasks automatically reset
 - ✅ Failed tasks remain in database for debugging
 - ✅ Exponential backoff on retries
 
 ### Observability
+
 - ✅ Comprehensive logging at all stages
 - ✅ Debug mode for development
 - ✅ Queue statistics endpoint
@@ -229,12 +238,15 @@ curl http://localhost:5000/internal/queue/stats \
 ## 📝 Migration Notes
 
 ### From Old Architecture
+
 The old `jobQueue.js` system is still functional for legacy scraping jobs but new task-based work uses the database queue.
 
 ### Database Migration
+
 On first startup, the database schema is automatically created. No manual migration required.
 
 ### Backward Compatibility
+
 All existing endpoints continue to work. The new architecture is additive.
 
 ## ✅ Testing Checklist
@@ -269,6 +281,7 @@ All existing endpoints continue to work. The new architecture is additive.
 ✅ **Unified architecture** (Issue #12)
 
 The internal routes system is now **production-ready** with:
+
 - Robust task queue management
 - Background processing
 - Automatic maintenance
