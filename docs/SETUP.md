@@ -46,17 +46,20 @@ curl -H "x-api-key: YOUR_KEY" "http://localhost:5000/browser/visit?url=https://e
 ## System Requirements
 
 ### Minimum Requirements
+
 - **Node.js:** 18.x or higher
 - **RAM:** 2GB minimum (4GB recommended)
 - **Disk:** 2GB free space (browsers + profiles)
 - **OS:** Windows, macOS, or Linux
 
 ### Required Software
+
 - Node.js and npm
 - Playwright (auto-installed via npm)
 - SQLite3 (included via better-sqlite3)
 
 ### Optional
+
 - Git (for cloning repository)
 - PM2 (for process management)
 - Nginx (for reverse proxy)
@@ -68,6 +71,7 @@ curl -H "x-api-key: YOUR_KEY" "http://localhost:5000/browser/visit?url=https://e
 ### Step 1: Install Node.js
 
 **Windows:**
+
 ```bash
 # Download from https://nodejs.org/
 # Or use Chocolatey:
@@ -75,12 +79,14 @@ choco install nodejs
 ```
 
 **Linux (Ubuntu/Debian):**
+
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt-get install -y nodejs
 ```
 
 **macOS:**
+
 ```bash
 brew install node
 ```
@@ -99,6 +105,7 @@ npm install
 ```
 
 **Packages installed:**
+
 - `express` - Web server framework
 - `playwright` - Browser automation
 - `better-sqlite3` - SQLite database
@@ -151,6 +158,8 @@ WEBHOOK_SECRET=your_webhook_secret_here
 
 See [Storage Setup](#storage-setup) section below.
 
+For detailed file storage API usage (with examples in PowerShell, Node.js, Python), see [File Storage API Reference](./FILE_STORAGE_API.md).
+
 ### Step 4: Configure Error Reporting (Optional)
 
 For WhatsApp error notifications:
@@ -180,17 +189,20 @@ CLEANUP_MAX_AGE_HOURS=24
 ```
 
 **Advantages:**
+
 - ✅ Zero setup
 - ✅ Automatic cleanup
 - ✅ Fast access
 
 **Limitations:**
+
 - ❌ Limited by disk space
 - ❌ No public URLs
 
 ### Option 2: BeDrive Cloud Storage
 
 **Prerequisites:**
+
 1. BeDrive instance deployed
 2. API key generated
 
@@ -220,11 +232,13 @@ BEDRIVE_FOLDER_ID=221
    - Or create folder and copy ID from URL
 
 **Advantages:**
+
 - ✅ Unlimited storage
 - ✅ Shareable links
 - ✅ Public URLs
 
 **Limitations:**
+
 - ❌ External service required
 - ❌ Hosting costs
 
@@ -233,6 +247,7 @@ BEDRIVE_FOLDER_ID=221
 ### Option 3: WordPress Media Storage
 
 **Prerequisites:**
+
 1. WordPress 5.6+ with HTTPS
 2. Editor/Admin account
 3. HTML uploads enabled
@@ -257,15 +272,16 @@ WORDPRESS_PASSWORD=xxxx xxxx xxxx xxxx xxxx xxxx
    - Copy password (format: `xxxx xxxx xxxx xxxx xxxx xxxx`)
 
 2. **Enable HTML Uploads:**
-   
+
    Add to `functions.php`:
+
    ```php
    add_filter('upload_mimes', function($mimes) {
        $mimes['html'] = 'text/html';
        return $mimes;
    });
    ```
-   
+
    Or install "WP Extra File Types" plugin.
 
 3. **Update Environment:**
@@ -273,11 +289,13 @@ WORDPRESS_PASSWORD=xxxx xxxx xxxx xxxx xxxx xxxx
    - Use application password (not account password)
 
 **Advantages:**
+
 - ✅ WordPress integration
 - ✅ CMS management
 - ✅ Direct URLs
 
 **Limitations:**
+
 - ❌ HTTPS required
 - ❌ PHP upload limits
 - ❌ Manual cleanup
@@ -296,6 +314,7 @@ node test-storage-adapter.js
 ```
 
 **Expected output:**
+
 ```
 Created storage adapter: local
 --- Testing saveHtml() ---
@@ -318,6 +337,7 @@ node test-wordpress-storage.js
 ### Test API Endpoints
 
 Start server first:
+
 ```bash
 npm start
 ```
@@ -353,6 +373,7 @@ npm start
 ```
 
 **Output:**
+
 ```
 Playwright server running on port 5000
 [Storage] Initializing local storage...
@@ -388,6 +409,7 @@ pm2 save
 ### Docker (Optional)
 
 Create `Dockerfile`:
+
 ```dockerfile
 FROM node:18
 
@@ -406,6 +428,7 @@ CMD ["npm", "start"]
 ```
 
 Build and run:
+
 ```bash
 docker build -t browser-api .
 docker run -p 5000:5000 --env-file .env browser-api
@@ -414,6 +437,7 @@ docker run -p 5000:5000 --env-file .env browser-api
 ### Environment-Specific Configuration
 
 **.env.development**
+
 ```env
 PORT=5000
 HEADLESS=false
@@ -422,6 +446,7 @@ ENABLE_LOCAL_CLEANUP=true
 ```
 
 **.env.production**
+
 ```env
 PORT=5000
 HEADLESS=true
@@ -457,6 +482,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
 Add to `.env`:
+
 ```env
 API_KEY=your_generated_key_here
 ```
@@ -483,6 +509,7 @@ curl "http://localhost:5000/cleanup/stats"
 ### Server Won't Start
 
 **Port already in use:**
+
 ```bash
 # Change port in .env
 PORT=5001
@@ -497,12 +524,14 @@ lsof -ti:5000 | xargs kill -9
 ```
 
 **Missing dependencies:**
+
 ```bash
 rm -rf node_modules package-lock.json
 npm install
 ```
 
 **Playwright not installed:**
+
 ```bash
 npx playwright install chromium
 ```
@@ -510,6 +539,7 @@ npx playwright install chromium
 ### Browser Issues
 
 **Browser won't launch:**
+
 ```bash
 # Check Playwright installation
 npx playwright --version
@@ -519,6 +549,7 @@ npx playwright install --force chromium
 ```
 
 **Browser crashes:**
+
 ```bash
 # Run in headed mode for debugging
 # Set in .env:
@@ -532,12 +563,14 @@ top      # Linux/macOS
 ### Storage Issues
 
 **Permission errors (Local):**
+
 ```bash
 mkdir -p scraped_html
 chmod 755 scraped_html
 ```
 
 **Disk space full:**
+
 ```bash
 # Check available space
 df -h
@@ -548,6 +581,7 @@ curl -X POST -H "x-api-key: YOUR_KEY" \
 ```
 
 **Cloud storage connection errors:**
+
 ```bash
 # Test BeDrive connection
 curl -H "Authorization: Bearer YOUR_KEY" \
@@ -561,6 +595,7 @@ curl -u "username:app_password" \
 ### Database Issues
 
 **Database locked:**
+
 ```bash
 # Stop server
 # Delete lock file
@@ -571,6 +606,7 @@ npm start
 ```
 
 **View errors:**
+
 ```bash
 sqlite3 logs/database.db "SELECT * FROM error_logs ORDER BY timestamp DESC LIMIT 10"
 ```
@@ -578,6 +614,7 @@ sqlite3 logs/database.db "SELECT * FROM error_logs ORDER BY timestamp DESC LIMIT
 ### Network Issues
 
 **Timeout errors:**
+
 ```bash
 # Increase timeout in request
 curl -H "x-api-key: YOUR_KEY" \
@@ -585,6 +622,7 @@ curl -H "x-api-key: YOUR_KEY" \
 ```
 
 **Firewall blocking:**
+
 ```bash
 # Check if port is accessible
 telnet localhost 5000
@@ -608,6 +646,7 @@ netsh advfirewall firewall add rule name="Browser API" dir=in action=allow proto
 ### Deployment Steps
 
 **1. Clone and Setup:**
+
 ```bash
 git clone <repository>
 cd localBrowser_playwright
@@ -616,6 +655,7 @@ npx playwright install chromium
 ```
 
 **2. Configure Environment:**
+
 ```bash
 cp .env.example .env
 nano .env
@@ -623,6 +663,7 @@ nano .env
 ```
 
 **3. Start with PM2:**
+
 ```bash
 npm install -g pm2
 pm2 start index.js --name browser-api
@@ -633,6 +674,7 @@ pm2 save
 **4. Configure Nginx (Optional):**
 
 Create `/etc/nginx/sites-available/browser-api`:
+
 ```nginx
 server {
     listen 80;
@@ -652,6 +694,7 @@ server {
 ```
 
 Enable site:
+
 ```bash
 ln -s /etc/nginx/sites-available/browser-api /etc/nginx/sites-enabled/
 nginx -t
@@ -659,12 +702,14 @@ systemctl reload nginx
 ```
 
 **5. Setup SSL with Certbot:**
+
 ```bash
 sudo apt install certbot python3-certbot-nginx
 sudo certbot --nginx -d api.yourdomain.com
 ```
 
 **6. Configure Firewall:**
+
 ```bash
 # UFW (Ubuntu)
 ufw allow 22/tcp
@@ -676,6 +721,7 @@ ufw enable
 ### Monitoring
 
 **PM2 Monitoring:**
+
 ```bash
 pm2 monit
 pm2 logs browser-api
@@ -683,11 +729,13 @@ pm2 status
 ```
 
 **Check Logs:**
+
 ```bash
 tail -f logs/*.log
 ```
 
 **Resource Usage:**
+
 ```bash
 # CPU/Memory
 top
@@ -703,6 +751,7 @@ curl -H "x-api-key: KEY" http://localhost:5000/cleanup/stats
 ### Backup Strategy
 
 **Database:**
+
 ```bash
 # Backup
 cp logs/database.db logs/database.db.backup
@@ -712,12 +761,14 @@ cp logs/database.db logs/database.db.backup
 ```
 
 **Browser Profile:**
+
 ```bash
 # Backup profile data
 tar -czf profile-backup.tar.gz profile-data/
 ```
 
 **HTML Files (Local Storage):**
+
 ```bash
 # Backup scraped HTML
 tar -czf html-backup.tar.gz scraped_html/
@@ -738,11 +789,13 @@ tar -czf html-backup.tar.gz scraped_html/
 ### Performance Optimization
 
 **1. Enable Headless Mode:**
+
 ```env
 HEADLESS=true
 ```
 
 **2. Configure Cleanup:**
+
 ```env
 ENABLE_LOCAL_CLEANUP=true
 CLEANUP_INTERVAL_HOURS=6
@@ -750,16 +803,19 @@ CLEANUP_MAX_AGE_HOURS=24
 ```
 
 **3. Use Cloud Storage:**
+
 ```env
 STORAGE_TYPE=bedrive
 ```
 
 **4. Resource Limits (PM2):**
+
 ```bash
 pm2 start index.js --name browser-api --max-memory-restart 1G
 ```
 
 **5. Nginx Caching (if applicable):**
+
 ```nginx
 proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=browser_cache:10m max_size=100m;
 proxy_cache browser_cache;
@@ -770,6 +826,7 @@ proxy_cache browser_cache;
 ## Support & Resources
 
 ### Documentation
+
 - [Storage Guide](./STORAGE.md) - Storage configuration
 - [API Reference](../README.md) - Complete API docs
 
