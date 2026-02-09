@@ -1,0 +1,864 @@
+{
+  "info": {
+    "_postman_id": "localbrowser-playwright-api",
+    "name": "LocalBrowser Playwright API",
+    "description": "API collection for LocalBrowser Playwright service - browser automation, web scraping, and task processing",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "apiKey",
+      "value": "your-api-key-here",
+      "type": "string"
+    },
+    {
+      "key": "workerId",
+      "value": "worker-12345",
+      "type": "string"
+    },
+    {
+      "key": "laravelSecret",
+      "value": "your-laravel-secret",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Root",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            },
+            "description": "Check if the API server is running"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Browser Operations",
+      "item": [
+        {
+          "name": "Execute JavaScript Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"document.title\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/browser/execute",
+              "host": ["{{baseUrl}}"],
+              "path": ["browser", "execute"]
+            },
+            "description": "Execute arbitrary JavaScript code in a browser context"
+          },
+          "response": []
+        },
+        {
+          "name": "Google Search",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/browser/search?q={{query}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["browser", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "{{query}}",
+                  "description": "Search query"
+                }
+              ]
+            },
+            "description": "Perform a Google search and return results"
+          },
+          "response": []
+        },
+        {
+          "name": "Visit URL",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/browser/visit?url={{url}}&returnHtml={{returnHtml}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["browser", "visit"],
+              "query": [
+                {
+                  "key": "url",
+                  "value": "{{url}}",
+                  "description": "Target URL (must start with http:// or https://)"
+                },
+                {
+                  "key": "returnHtml",
+                  "value": "{{returnHtml}}",
+                  "description": "Return HTML content as string (true/false)",
+                  "optional": true
+                },
+                {
+                  "key": "saveToFile",
+                  "value": "true",
+                  "description": "Save HTML to file (true/false)",
+                  "optional": true
+                },
+                {
+                  "key": "waitUntil",
+                  "value": "networkidle",
+                  "description": "Wait until condition (load, domcontentloaded, networkidle, commit)",
+                  "optional": true
+                },
+                {
+                  "key": "timeout",
+                  "value": "60000",
+                  "description": "Timeout in milliseconds",
+                  "optional": true
+                }
+              ]
+            },
+            "description": "Navigate to a URL and optionally return HTML content"
+          },
+          "response": []
+        },
+        {
+          "name": "Scrape Product Data",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/browser/scrape?url={{productUrl}}&vendor={{vendor}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["browser", "scrape"],
+              "query": [
+                {
+                  "key": "url",
+                  "value": "{{productUrl}}",
+                  "description": "Product page URL"
+                },
+                {
+                  "key": "vendor",
+                  "value": "{{vendor}}",
+                  "description": "Vendor name (e.g., amazon, ebay)"
+                }
+              ]
+            },
+            "description": "Scrape product information from a vendor URL"
+          },
+          "response": []
+        },
+        {
+          "name": "Download HTML File",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/browser/download/{{fileId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["browser", "download", "{{fileId}}"]
+            },
+            "description": "Download a previously saved HTML file as attachment"
+          },
+          "response": []
+        },
+        {
+          "name": "View HTML File",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/browser/view/{{fileId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["browser", "view", "{{fileId}}"]
+            },
+            "description": "View saved HTML file metadata and content as JSON"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Chat Operations",
+      "item": [
+        {
+          "name": "Prepare Chat Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/chat/prepare",
+              "host": ["{{baseUrl}}"],
+              "path": ["chat", "prepare"]
+            },
+            "description": "Initialize a new Gemini chat session"
+          },
+          "response": []
+        },
+        {
+          "name": "Send Message to Gemini",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"Hello, how are you?\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/chat/message",
+              "host": ["{{baseUrl}}"],
+              "path": ["chat", "message"]
+            },
+            "description": "Send a message to the Gemini AI chatbot"
+          },
+          "response": []
+        },
+        {
+          "name": "Send Message to ChatGPT",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"Hello, how are you?\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/chat/chatgpt/message",
+              "host": ["{{baseUrl}}"],
+              "path": ["chat", "chatgpt", "message"]
+            },
+            "description": "Send a message to the ChatGPT AI chatbot"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Cleanup Operations",
+      "item": [
+        {
+          "name": "Run Cleanup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cleanup?maxAge={{maxAge}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["cleanup"],
+              "query": [
+                {
+                  "key": "maxAge",
+                  "value": "{{maxAge}}",
+                  "description": "Maximum age in hours (default: 24)"
+                }
+              ]
+            },
+            "description": "Clean up old files based on maximum age"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Cleanup Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cleanup/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["cleanup", "stats"]
+            },
+            "description": "Get current storage statistics"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Cron Operations",
+      "item": [
+        {
+          "name": "Cleanup Pages",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/cron/cleanup-pages",
+              "host": ["{{baseUrl}}"],
+              "path": ["cron", "cleanup-pages"]
+            },
+            "description": "Cleanup idle browser pages (closes pages when more than 3 are open)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Page Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cron/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["cron", "stats"]
+            },
+            "description": "Get current page statistics and health information"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Error Reporting",
+      "item": [
+        {
+          "name": "Report Error",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"SCRAPE_FAILED\",\n  \"message\": \"Failed to scrape page\",\n  \"stack\": \"Error stack trace...\",\n  \"route\": \"/browser/scrape\",\n  \"input\": {\n    \"url\": \"https://example.com\",\n    \"vendor\": \"test\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/error/report",
+              "host": ["{{baseUrl}}"],
+              "path": ["error", "report"]
+            },
+            "description": "Report an error for logging and notification"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Job Operations",
+      "item": [
+        {
+          "name": "Create Job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jobId\": \"optional-job-id\",\n  \"target\": {\n    \"url\": \"https://example.com/product\",\n    \"metadata\": {\n      \"category\": \"electronics\"\n    },\n    \"lead\": {\n      \"company\": \"Example Corp\"\n    }\n  },\n  \"parser\": {\n    \"id\": \"parser-id\",\n    \"slug\": \"product-parser\",\n    \"mode\": \"single\",\n    \"definition\": {\n      \"fields\": [\"title\", \"price\", \"description\"]\n    }\n  },\n  \"callbackUrl\": \"https://your-app.com/callback\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/jobs",
+              "host": ["{{baseUrl}}"],
+              "path": ["jobs"]
+            },
+            "description": "Create a new scraping job"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Page Operations",
+      "item": [
+        {
+          "name": "List Pages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pages/list",
+              "host": ["{{baseUrl}}"],
+              "path": ["pages", "list"]
+            },
+            "description": "List all active browser pages"
+          },
+          "response": []
+        },
+        {
+          "name": "Request Page",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pages/request?type={{pageType}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["pages", "request"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "{{pageType}}",
+                  "description": "Page type (e.g., scraper, browser)"
+                }
+              ]
+            },
+            "description": "Request a new browser page"
+          },
+          "response": []
+        },
+        {
+          "name": "Close Page",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pages/close",
+              "host": ["{{baseUrl}}"],
+              "path": ["pages", "close"]
+            },
+            "description": "Close the current page/chat session"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "IAAPA Expo Operations",
+      "item": [
+        {
+          "name": "Run All Scraping Jobs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/iaapa/run-all?file={{iaapaFile}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["iaapa", "run-all"],
+              "query": [
+                {
+                  "key": "file",
+                  "value": "{{iaapaFile}}",
+                  "description": "JSON filename from Data/ directory"
+                }
+              ]
+            },
+            "description": "Start background scraping of all exhibitors (public endpoint)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Job Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/iaapa/status?id={{iaapaJobId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["iaapa", "status"],
+              "query": [
+                {
+                  "key": "id",
+                  "value": "{{iaapaJobId}}",
+                  "description": "Job ID from /iaapa/run-all"
+                }
+              ]
+            },
+            "description": "Get the status of a running scraping job"
+          },
+          "response": []
+        },
+        {
+          "name": "Download CSV",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/iaapa/download-csv?name={{csvName}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["iaapa", "download-csv"],
+              "query": [
+                {
+                  "key": "name",
+                  "value": "{{csvName}}",
+                  "description": "CSV filename from status response"
+                }
+              ]
+            },
+            "description": "Download the scraped CSV file"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Internal API (HMAC-Secured)",
+      "item": [
+        {
+          "name": "Ping",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Signature",
+                "value": "{{hmacSignature}}",
+                "type": "text"
+              },
+              {
+                "key": "X-Timestamp",
+                "value": "{{timestamp}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/internal/ping",
+              "host": ["{{baseUrl}}"],
+              "path": ["internal", "ping"]
+            },
+            "description": "Laravel notifies Node that work is available"
+          },
+          "response": []
+        },
+        {
+          "name": "Request Work",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Signature",
+                "value": "{{hmacSignature}}",
+                "type": "text"
+              },
+              {
+                "key": "X-Timestamp",
+                "value": "{{timestamp}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"max_tasks\": 5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/internal/request-work",
+              "host": ["{{baseUrl}}"],
+              "path": ["internal", "request-work"]
+            },
+            "description": "Worker requests available tasks from Laravel"
+          },
+          "response": []
+        },
+        {
+          "name": "Submit Task Result",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Signature",
+                "value": "{{hmacSignature}}",
+                "type": "text"
+              },
+              {
+                "key": "X-Timestamp",
+                "value": "{{timestamp}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"task_id\": \"task-uuid\",\n  \"success\": true,\n  \"result\": {\n    \"data\": \"scraped content\"\n  },\n  \"executed_at\": \"2024-01-15T10:30:00.000Z\",\n  \"duration_ms\": 5000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/internal/task-result",
+              "host": ["{{baseUrl}}"],
+              "path": ["internal", "task-result"]
+            },
+            "description": "Worker submits completed task result"
+          },
+          "response": []
+        },
+        {
+          "name": "Queue Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Signature",
+                "value": "{{hmacSignature}}",
+                "type": "text"
+              },
+              {
+                "key": "X-Timestamp",
+                "value": "{{timestamp}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/internal/queue/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["internal", "queue", "stats"]
+            },
+            "description": "Get task queue statistics"
+          },
+          "response": []
+        },
+        {
+          "name": "Enqueue Tasks",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Signature",
+                "value": "{{hmacSignature}}",
+                "type": "text"
+              },
+              {
+                "key": "X-Timestamp",
+                "value": "{{timestamp}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tasks\": [\n    {\n      \"type\": \"scrape\",\n      \"url\": \"https://example.com\",\n      \"payload\": {}\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/internal/queue/enqueue",
+              "host": ["{{baseUrl}}"],
+              "path": ["internal", "queue", "enqueue"]
+            },
+            "description": "Add new tasks to the queue"
+          },
+          "response": []
+        },
+        {
+          "name": "Queue Cleanup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Signature",
+                "value": "{{hmacSignature}}",
+                "type": "text"
+              },
+              {
+                "key": "X-Timestamp",
+                "value": "{{timestamp}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"older_than_days\": 7\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/internal/queue/cleanup",
+              "host": ["{{baseUrl}}"],
+              "path": ["internal", "queue", "cleanup"]
+            },
+            "description": "Clean up old tasks from the queue"
+          },
+          "response": []
+        },
+        {
+          "name": "Reset Stuck Tasks",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Signature",
+                "value": "{{hmacSignature}}",
+                "type": "text"
+              },
+              {
+                "key": "X-Timestamp",
+                "value": "{{timestamp}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stuck_after_minutes\": 30\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/internal/queue/reset-stuck",
+              "host": ["{{baseUrl}}"],
+              "path": ["internal", "queue", "reset-stuck"]
+            },
+            "description": "Reset tasks that have been stuck in processing state"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

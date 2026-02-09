@@ -196,9 +196,26 @@ class TaskExecutor {
       const options = {
         logLevel: 'error', // Suppress verbose output
         output: 'json',
-        port: process.env.CHROME_PORT || undefined,
+        onlyCategories: ['performance', 'accessibility', 'best-practices', 'seo'],
+        // Chrome launch flags - helps with headless environments
+        chromeFlags: [
+          '--headless=new',
+          '--disable-gpu',
+          '--no-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-web-security',
+          '--disable-features=IsolateOrigins,site-per-process',
+        ],
+        // Only connect to existing Chrome if explicitly configured
+        // Otherwise, let Lighthouse manage its own Chrome instance
+        ...(process.env.CHROME_PORT ? { port: parseInt(process.env.CHROME_PORT) } : {}),
         ...payload?.lighthouseOptions,
       };
+
+      console.log(`[TaskExecutor] Starting Lighthouse audit for ${url}`, { 
+        hasCustomPort: !!process.env.CHROME_PORT,
+        timeout: payload?.timeout || 120000 
+      });
 
       // Wrap Lighthouse in a timeout promise
       const lighthouseTimeout = payload?.timeout || 120000; // Default 2 minutes
