@@ -16,7 +16,7 @@ export interface BrowserSession {
   lastUsed: Date;
 }
 
-export type SessionType = 'browser' | 'chat' | 'scraper';
+export type SessionType = 'browser' | 'chat' | 'scraper' | 'chatgpt';
 
 /**
  * Browser configuration options
@@ -137,7 +137,7 @@ export enum BrowserErrorCode {
   NAVIGATION_TIMEOUT = 'ERR_NAVIGATION_TIMEOUT',
   PAGE_CLOSED = 'ERR_PAGE_CLOSED',
   SESSION_NOT_FOUND = 'ERR_SESSION_NOT_FOUND',
-  CODE_EXECUTION_ERROR = 'ERR_CODE_EXECUTION'
+  CODE_EXECUTION_ERROR = 'ERR_CODE_EXECUTION',
 }
 
 /**

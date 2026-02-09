@@ -92,7 +92,7 @@ export enum ErrorCode {
   INTERNAL_ERROR = 'ERR_INTERNAL',
   TIMEOUT = 'ERR_TIMEOUT',
   NETWORK_ERROR = 'ERR_NETWORK',
-  CONFLICT = 'ERR_CONFLICT'
+  CONFLICT = 'ERR_CONFLICT',
 }
 
 /**
@@ -132,9 +132,18 @@ export interface Task {
 /**
  * Job types
  */
+export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'succeeded';
+
+export interface Parser {
+  id: string;
+  slug: string;
+  mode: 'single' | 'batch' | 'vendor' | 'script';
+  definition?: Record<string, unknown>;
+}
+
 export interface Job {
   id: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: JobStatus;
   tasks: Task[];
   createdAt: string;
   updatedAt: string;

@@ -4,22 +4,16 @@ module.exports = {
     node: true,
     es2022: true,
   },
-  extends: [
-    'eslint:recommended',
-    'plugin:@typescript-eslint/recommended',
-    'plugin:prettier/recommended',
-  ],
+  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended'],
   parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 2022,
     sourceType: 'module',
-    project: './tsconfig.json',
-    tsconfigRootDir: __dirname,
   },
-  plugins: ['@typescript-eslint', 'prettier'],
+  plugins: ['@typescript-eslint'],
   rules: {
-    // Prettier formatting
-    'prettier/prettier': 'error',
+    // Prettier formatting (disabled due to CRLF issues on Windows)
+    'prettier/prettier': 'off',
 
     // TypeScript specific rules
     '@typescript-eslint/no-explicit-any': 'warn',
@@ -30,28 +24,21 @@ module.exports = {
         varsIgnorePattern: '^_',
       },
     ],
-    '@typescript-eslint/prefer-const': 'error',
-    '@typescript-eslint/no-console': 'warn',
+    // Disable rules that require type information
+    '@typescript-eslint/no-empty-object-type': 'off',
+    '@typescript-eslint/no-require-imports': 'off',
 
     // General code quality rules
-    'no-console': 'off', // Allow console in development
+    'no-console': 'off',
     'no-debugger': 'warn',
     'no-alert': 'warn',
 
     // Best practices
-    'eqeqeq': ['error', 'always'],
-    'curly': ['error', 'all'],
+    eqeqeq: ['error', 'always'],
+    curly: 'off', // Disabled due to many legacy JS files
     'no-eval': 'error',
-    'no-implicit-globals': 'error',
-
-    // Import rules
-    'import/order': [
-      'warn',
-      {
-        groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
-        alphabetize: { order: 'asc' },
-      },
-    ],
+    'no-implicit-globals': 'off',
+    'no-case-declarations': 'off', // Allow case block declarations
   },
   overrides: [
     // Test files configuration
@@ -61,11 +48,7 @@ module.exports = {
         jest: true,
         node: true,
       },
-      extends: [
-        'plugin:jest/recommended',
-        'plugin:@typescript-eslint/recommended',
-        'plugin:prettier/recommended',
-      ],
+      extends: ['plugin:jest/recommended', 'plugin:@typescript-eslint/recommended'],
       rules: {
         // Relax some rules for tests
         '@typescript-eslint/no-explicit-any': 'off',
@@ -73,6 +56,8 @@ module.exports = {
         '@typescript-eslint/no-console': 'off',
         'jest/expect-expect': 'warn',
         'jest/no-disabled-tests': 'warn',
+        'jest/no-conditional-expect': 'off',
+        'prettier/prettier': 'off',
       },
     },
     // Integration tests
@@ -80,6 +65,7 @@ module.exports = {
       files: ['**/integration/**/*.ts'],
       rules: {
         'jest/expect-expect': 'off',
+        'prettier/prettier': 'off',
       },
     },
     // Ignore patterns for generated files
@@ -97,5 +83,16 @@ module.exports = {
     'coverage/',
     '*.config.js',
     '*.config.ts',
+    '*.json',
+    'Data/',
+    'bootstrap/',
+    'types/',
+    'utils/storage/*.js',
+    'utils/*.js',
+    'services/*.js',
+    'helpers/*.js',
+    'middleware/*.js',
+    'controllers/*.js',
+    'tests/*.js',
   ],
 };

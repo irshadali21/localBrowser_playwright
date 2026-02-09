@@ -21,7 +21,7 @@ interface JobTarget {
 interface JobParser {
   id?: string;
   slug?: string;
-  mode: string;
+  mode: 'single' | 'batch' | 'vendor' | 'script';
   definition?: Record<string, unknown>;
 }
 
@@ -38,7 +38,11 @@ interface CreateJobPayload {
 /**
  * Create a new job
  */
-export const create = async (req: Request<{}, {}, CreateJobPayload>, res: Response, next: NextFunction): Promise<void> => {
+export const create = async (
+  req: Request<{}, {}, CreateJobPayload>,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
     console.log('[JobController] Received job creation request', {
       path: req.path,
@@ -61,6 +65,12 @@ export const create = async (req: Request<{}, {}, CreateJobPayload>, res: Respon
       return;
     }
 
+    if (!parser.slug || typeof parser.slug !== 'string') {
+      console.warn('[JobController] Invalid request: missing parser.slug');
+      res.status(400).json({ error: 'Missing parser.slug' });
+      return;
+    }
+
     if (!callbackUrl) {
       console.warn('[JobController] Invalid request: missing callbackUrl');
       res.status(400).json({ error: 'Missing callbackUrl' });
@@ -80,7 +90,7 @@ export const create = async (req: Request<{}, {}, CreateJobPayload>, res: Respon
         definition: parser.definition || {},
       },
       lead: target.lead || {},
-      callbackUrl
+      callbackUrl,
     };
 
     console.log('[JobController] Job created', {

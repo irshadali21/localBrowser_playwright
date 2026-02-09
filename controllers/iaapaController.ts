@@ -82,7 +82,9 @@ async function gotoWithRetry(page: any, url: string, tries = 3, baseDelayMs = 10
  * Escape CSV value
  */
 function esc(v: unknown): string {
-  const s = String(v ?? '').replace(/\r?\n/g, ' ').trim();
+  const s = String(v ?? '')
+    .replace(/\r?\n/g, ' ')
+    .trim();
   return /[",]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
@@ -119,14 +121,16 @@ export const runAll = async (req: Request, res: Response): Promise<void> => {
   });
 
   // fire & forget (keeps running on server)
-  setImmediate(() => runAllWorker(jobId).catch(err => {
-    const j = jobs.get(jobId);
-    if (j) {
-      j.error = err instanceof Error ? err.message : String(err);
-      j.done = true;
-      jobs.set(jobId, j);
-    }
-  }));
+  setImmediate(() =>
+    runAllWorker(jobId).catch(err => {
+      const j = jobs.get(jobId);
+      if (j) {
+        j.error = err instanceof Error ? err.message : String(err);
+        j.done = true;
+        jobs.set(jobId, j);
+      }
+    })
+  );
 
   res.json({ jobId });
 };
@@ -176,10 +180,10 @@ async function runAllWorker(jobId: string): Promise<void> {
 
   // Configuration: tweak these values to taste
   const RATE_LIMIT = {
-    minDelayMs: 800,      // minimum delay between requests
-    maxDelayMs: 2200,     // maximum delay between requests
-    longPauseEvery: 50,   // take a longer pause every N requests
-    longPauseMs: 10_000,  // long pause duration (ms)
+    minDelayMs: 800, // minimum delay between requests
+    maxDelayMs: 2200, // maximum delay between requests
+    longPauseEvery: 50, // take a longer pause every N requests
+    longPauseMs: 10_000, // long pause duration (ms)
   };
 
   const dataDir = path.join(process.cwd(), 'Data');
@@ -235,8 +239,8 @@ async function runAllWorker(jobId: string): Promise<void> {
       const exhid = String(row.EXHID || row.exhid || '').trim();
       const exhname = String(row.EXHNAME || row.exhname || '').trim();
       if (!exhid) {
-        j.processed++; 
-        jobs.set(jobId, j); 
+        j.processed++;
+        jobs.set(jobId, j);
         continue;
       }
 
@@ -264,7 +268,9 @@ async function runAllWorker(jobId: string): Promise<void> {
           if (p) description = t(p) || '';
         }
         if (!description) {
-          const aboutH2 = Array.from(document.querySelectorAll('h2')).find(h => /about/i.test(h.textContent || ''));
+          const aboutH2 = Array.from(document.querySelectorAll('h2')).find(h =>
+            /about/i.test(h.textContent || '')
+          );
           const p2 = aboutH2?.nextElementSibling?.querySelector?.('p');
           if (p2) description = t(p2) || '';
         }
@@ -288,11 +294,14 @@ async function runAllWorker(jobId: string): Promise<void> {
         }
 
         // Socials & contact
-        const companyInfo = document.querySelector('article.section--contactinfo') || document.getElementById('js-vue-contactinfo');
+        const companyInfo =
+          document.querySelector('article.section--contactinfo') ||
+          document.getElementById('js-vue-contactinfo');
         const links = companyInfo ? Array.from(companyInfo.querySelectorAll('a[href]')) : [];
 
         // Classify links
-        const pick = (pred: (href: string | null) => boolean) => (links.find(a => pred(a.getAttribute('href'))) || null);
+        const pick = (pred: (href: string | null) => boolean) =>
+          links.find(a => pred(a.getAttribute('href'))) || null;
         const has = (pred: (href: string | null) => boolean) => !!pick(pred);
 
         const isInsta = (h: string | null) => !!h && /instagram\.com/i.test(h);
@@ -310,17 +319,19 @@ async function runAllWorker(jobId: string): Promise<void> {
 
         const phoneA = links.find(a => isTel(a.getAttribute('href')));
         let faxValue = '';
-        const faxNode = Array.from(companyInfo?.querySelectorAll('*') || []).find(n => /fax/i.test(n.textContent || ''));
+        const faxNode = Array.from(companyInfo?.querySelectorAll('*') || []).find(n =>
+          /fax/i.test(n.textContent || '')
+        );
         if (faxNode) {
           const tel = faxNode.querySelector('a[href^="tel:"]');
           if (tel) faxValue = tel.getAttribute('href')?.replace(/^tel:/i, '') || '';
         }
 
         const websiteValue = websiteA ? websiteA.getAttribute('href') || '' : '';
-        const instagramValue = (pick(isInsta)?.getAttribute('href')) || '';
-        const facebookValue = (pick(isFb)?.getAttribute('href')) || '';
-        const twitterValue = (pick(isTw)?.getAttribute('href')) || '';
-        const linkedInValue = (pick(isLn)?.getAttribute('href')) || '';
+        const instagramValue = pick(isInsta)?.getAttribute('href') || '';
+        const facebookValue = pick(isFb)?.getAttribute('href') || '';
+        const twitterValue = pick(isTw)?.getAttribute('href') || '';
+        const linkedInValue = pick(isLn)?.getAttribute('href') || '';
         const phoneValue = phoneA ? phoneA.getAttribute('href')?.replace(/^tel:/i, '') || '' : '';
 
         const hasWebsiteData = !!websiteValue;
@@ -362,30 +373,32 @@ async function runAllWorker(jobId: string): Promise<void> {
       });
 
       // Write CSV row
-      ws.write([
-        esc(exhid),
-        esc(exhname),
-        esc(url),
-        esc(data.description || ''),
-        esc((data.productCategories || []).join(' | ')),
-        esc((data.booths || []).join(' | ')),
-        esc(data.websiteValue || ''),
-        esc(data.instagramValue || ''),
-        esc(data.facebookValue || ''),
-        esc(data.twitterValue || ''),
-        esc(data.linkedInValue || ''),
-        esc(data.phoneValue || ''),
-        esc(data.faxValue || ''),
-        esc(data.hasAddressData),
-        esc(data.hasWebsiteData),
-        esc(data.hasTwitter),
-        esc(data.hasLinkedIn),
-        esc(data.hasFacebook),
-        esc(data.hasInstagram),
-        esc(data.hasEmail),
-        esc(data.hasPhone),
-        esc(data.hasFax),
-      ].join(',') + '\n');
+      ws.write(
+        [
+          esc(exhid),
+          esc(exhname),
+          esc(url),
+          esc(data.description || ''),
+          esc((data.productCategories || []).join(' | ')),
+          esc((data.booths || []).join(' | ')),
+          esc(data.websiteValue || ''),
+          esc(data.instagramValue || ''),
+          esc(data.facebookValue || ''),
+          esc(data.twitterValue || ''),
+          esc(data.linkedInValue || ''),
+          esc(data.phoneValue || ''),
+          esc(data.faxValue || ''),
+          esc(data.hasAddressData),
+          esc(data.hasWebsiteData),
+          esc(data.hasTwitter),
+          esc(data.hasLinkedIn),
+          esc(data.hasFacebook),
+          esc(data.hasInstagram),
+          esc(data.hasEmail),
+          esc(data.hasPhone),
+          esc(data.hasFax),
+        ].join(',') + '\n'
+      );
 
       j.processed++;
       jobs.set(jobId, j);
@@ -399,12 +412,20 @@ async function runAllWorker(jobId: string): Promise<void> {
     j.done = true;
     jobs.set(jobId, j);
   } catch (err) {
-    try { ws.end(); } catch { }
+    try {
+      ws.end();
+    } catch {
+      /* ignore */
+    }
     j.error = err instanceof Error ? err.message : String(err);
     j.done = true;
     jobs.set(jobId, j);
   } finally {
-    try { closePage(pageId); } catch { }
+    try {
+      closePage(pageId);
+    } catch {
+      /* ignore */
+    }
   }
 }
 

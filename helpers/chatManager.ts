@@ -1,15 +1,38 @@
-// helpers/chatManager.js
-const { requestPage, closePage } = require('../utils/pageManager');
+/**
+ * Chat Manager - Chat functionality for Gemini and ChatGPT
+ */
 
-let chatPageId = null;
-let chatPage = null;
+import type { Page } from 'playwright';
+import { requestPage } from '../utils/pageManager';
 
-let chatGPTPageId = null;
-let chatGPTPage = null;
+/**
+ * Chat preparation result
+ */
+export interface ChatPrepareResult {
+  status: 'ready' | 'login_failed';
+  pageId?: number;
+}
+
+/**
+ * Chat response result
+ */
+export interface ChatResponseResult {
+  response: string;
+  pageId?: number;
+}
+
+// Module-level state (for backward compatibility)
+let chatPageId: number | null = null;
+let chatPage: Page | null = null;
+
+let chatGPTPageId: number | null = null;
+let chatGPTPage: Page | null = null;
 let isChatGPTClosed = false;
 
-
-async function prepareChat() {
+/**
+ * Prepare chat page for Gemini
+ */
+export async function prepareChat(): Promise<ChatPrepareResult> {
   const { page, id } = await requestPage('chat');
   chatPage = page;
   chatPageId = id;
@@ -30,7 +53,10 @@ async function prepareChat() {
   return { status: 'ready', pageId: chatPageId };
 }
 
-async function sendChat(prompt) {
+/**
+ * Send message to Gemini
+ */
+export async function sendChat(prompt: string): Promise<string> {
   if (!chatPage || chatPage.isClosed?.()) {
     const { page, id } = await requestPage('chat');
     chatPage = page;
@@ -45,13 +71,16 @@ async function sendChat(prompt) {
   const response = await chatPage.evaluate(() => {
     const responses = Array.from(document.querySelectorAll('message-content'));
     const last = responses[responses.length - 1];
-    return last?.innerText?.trim() || 'No response found.';
+    return (last as HTMLElement)?.innerText?.trim() || 'No response found.';
   });
 
   return response;
 }
 
-async function sendChatGPT(prompt) {
+/**
+ * Send message to ChatGPT
+ */
+export async function sendChatGPT(prompt: string): Promise<string> {
   if (!chatGPTPage || isChatGPTClosed) {
     const { page, id } = await requestPage('chatgpt');
     chatGPTPage = page;
@@ -68,16 +97,16 @@ async function sendChatGPT(prompt) {
 
   // 1. Watch for the response stream
   let streamDone = false;
-  const onRequestFinished = (req) => {
+  const onRequestFinished = (req: { url: () => string }) => {
     if (req.url().includes('/backend-api/conversation')) {
       streamDone = true;
-      chatGPTPage.off('requestfinished', onRequestFinished); // clean up
+      chatGPTPage?.off('requestfinished', onRequestFinished);
     }
   };
-  chatGPTPage.on('requestfinished', onRequestFinished);
+  chatGPTPage?.on('requestfinished', onRequestFinished);
 
   // 2. Check login
-  const isLoggedOut = await chatGPTPage.locator('button[data-testid="login-button"]').count() > 0;
+  const isLoggedOut = (await chatGPTPage.locator('button[data-testid="login-button"]').count()) > 0;
   if (isLoggedOut) {
     console.log('[ChatGPT] Not logged in');
     return 'Please login to ChatGPT manually.';
@@ -103,8 +132,8 @@ async function sendChatGPT(prompt) {
   await chatGPTPage.keyboard.press('Enter');
 
   // 4. Wait for the stream to finish
-  await new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject('⏱ ChatGPT stream timeout'), 45000);
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('ChatGPT stream timeout')), 45000);
     const check = () => {
       if (streamDone) {
         clearTimeout(timeout);
@@ -122,7 +151,7 @@ async function sendChatGPT(prompt) {
   while (stableCount < 4) {
     const current = await chatGPTPage.evaluate(() => {
       const responses = Array.from(document.querySelectorAll('div.markdown.prose'));
-      return responses.at(-1)?.innerText?.trim() || '';
+      return (responses.at(-1) as HTMLElement)?.innerText?.trim() || '';
     });
 
     if (current === lastResponse && current !== '') {
@@ -132,18 +161,20 @@ async function sendChatGPT(prompt) {
       lastResponse = current;
     }
 
-    await chatGPTPage.waitForTimeout(300); // wait ~1.2s total for stability
+    await chatGPTPage.waitForTimeout(300);
   }
 
   return lastResponse || 'No response found.';
 }
 
-
-async function dismissGeminiPopup(page) {
+/**
+ * Dismiss Gemini popup
+ */
+async function dismissGeminiPopup(page: Page): Promise<void> {
   try {
     const popup = page.locator('div[role="dialog"] button');
     if (await popup.count()) {
-      for (let i = 0; i < await popup.count(); i++) {
+      for (let i = 0; i < (await popup.count()); i++) {
         const text = await popup.nth(i).innerText();
         if (/no thanks|dismiss/i.test(text)) {
           await popup.nth(i).click();
@@ -151,26 +182,28 @@ async function dismissGeminiPopup(page) {
         }
       }
     }
-  } catch (e) {
+  } catch {
     // silently ignore
   }
 }
 
-async function waitForStableResponse(page, selector, timeout = 400000) {
+/**
+ * Wait for stable response from chat
+ */
+export async function waitForStableResponse(
+  page: Page,
+  selector: string,
+  timeout: number = 400000
+): Promise<string> {
   const start = Date.now();
   let previous = '';
   let stableCounter = 0;
-  console.log(start);
-  console.log(previous);
-  console.log(stableCounter);
-
 
   while (Date.now() - start < timeout) {
-    const current = await page.evaluate((sel) => {
+    const current = await page.evaluate((sel: string) => {
       const elements = Array.from(document.querySelectorAll(sel));
-      return elements.at(-1)?.innerText?.trim() || '';
+      return (elements.at(-1) as HTMLElement)?.innerText?.trim() || '';
     }, selector);
-    console.log(current);
 
     if (current === previous) {
       stableCounter++;
@@ -179,26 +212,30 @@ async function waitForStableResponse(page, selector, timeout = 400000) {
       previous = current;
     }
 
-    if (stableCounter >= 5) break; // content stayed the same for ~1.5s
+    if (stableCounter >= 5) break;
 
-    await page.waitForTimeout(300); // short interval
+    await page.waitForTimeout(300);
   }
 
   return previous || 'No response found.';
 }
 
-
-async function closeChat() {
+/**
+ * Close chat page
+ */
+export async function closeChat(): Promise<void> {
   if (chatPageId) {
+    const { closePage } = await import('../utils/pageManager');
     closePage(chatPageId);
     chatPageId = null;
     chatPage = null;
   }
 }
 
-module.exports = {
+export default {
   prepareChat,
   sendChat,
   closeChat,
-  sendChatGPT
+  sendChatGPT,
+  waitForStableResponse,
 };

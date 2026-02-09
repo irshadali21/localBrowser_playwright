@@ -49,13 +49,6 @@
     "experimentalDecorators": false,
     "emitDecoratorMetadata": false
   },
-  "include": [
-    "**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "coverage",
-    "tests"
-  ]
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "dist", "coverage"]
 }
