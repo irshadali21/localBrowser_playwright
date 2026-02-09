@@ -7,12 +7,12 @@
   "bracketSpacing": true,
   "arrowParens": "avoid",
   "endOfLine": "lf",
-  "parser": "typescript",
   "plugins": [],
   "overrides": [
     {
       "files": "*.md",
       "options": {
+        "parser": "markdown",
         "printWidth": 120,
         "tabWidth": 2,
         "bracketSpacing": true
@@ -21,6 +21,7 @@
     {
       "files": "*.json",
       "options": {
+        "parser": "json",
         "printWidth": 120
       }
     },
