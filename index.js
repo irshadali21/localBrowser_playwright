@@ -1,51 +1,58 @@
 // index.js
-// Load TypeScript files using ts-node/register for development
+// Application Entry Point - Migrated to Unified API Gateway
+// All routes are now accessed through the gateway command system
+
 require('ts-node/register/transpile-only');
 
 const express = require('express');
 const app = express();
 const dotenv = require('dotenv');
 dotenv.config();
-const errorHandler = require('./middleware/errorHandler').default;
-const hmacSignature = require('./middleware/hmacSignature').default;
-const internalRoutes = require('./routes/internalRoutes');
-const StartupWorkerHandshake = require('./bootstrap/startupWorkerHandshake');
+
+// ============================================================================
+// Gateway Middleware Initialization
+// ============================================================================
+
+// Initialize gateway middleware (API keys, rate limits, etc.)
+const { initializeMiddleware } = require('./middleware/gatewayMiddleware');
+initializeMiddleware();
+
+// ============================================================================
+// Core Middleware
+// ============================================================================
 
 app.use(express.json());
 
-// API Key Auth Middleware (skip for internal routes)
-app.use((req, res, next) => {
-  if (req.path.startsWith('/internal')) return next();
-  if (req.path.startsWith('/iaapa')) return next();
-  if (req.headers['x-api-key'] !== process.env.API_KEY) {
-    return res.status(401).json({ error: 'Unauthorized - Invalid API Key' });
-  }
-  next();
-});
+// ============================================================================
+// Unified Routes (Gateway)
+// ============================================================================
 
-// Internal API Routes (HMAC-secured)
-app.use('/internal', internalRoutes);
+// Mount all routes through unified routes
+const unifiedRoutes = require('./routes/unifiedRoutes');
+app.use(unifiedRoutes);
 
-// Public Routes
-app.use('/chat', require('./routes/chatRoutes'));
-app.use('/browser', require('./routes/browserRoutes'));
-app.use('/error', require('./routes/errorRoutes'));
-app.use('/pages', require('./routes/pageRoutes'));
-app.use('/jobs', require('./routes/jobRoutes'));
-app.use('/cron', require('./routes/cronRoutes'));
-app.use('/cleanup', require('./routes/cleanupRoutes'));
-
-app.use('/iaapa', require('./routes/iaapaRoutes'));
+// ============================================================================
+// Root Endpoint
+// ============================================================================
 
 app.get('/', (req, res) => {
-  res.json({ status: 'LocalBrowser API (Playwright) is running' });
+  res.json({
+    status: 'LocalBrowser API (Playwright) is running',
+    version: '2.0.0',
+    gateway: '/api/v1',
+    health: '/health',
+    docs: '/api-docs',
+  });
 });
 
-app.use(errorHandler);
+// ============================================================================
+// Background Services
+// ============================================================================
 
 const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, async () => {
   console.log(`Playwright server running on port ${PORT}`);
+  console.log(`Unified API Gateway mounted at /api/v1`);
 
   // Start automatic cleanup only for local storage (cloud storage doesn't need cleanup)
   const storageType = process.env.STORAGE_TYPE || 'local';
@@ -142,62 +149,20 @@ const server = app.listen(PORT, async () => {
         secret: process.env.LOCALBROWSER_SECRET,
       });
 
-      const handshake = new StartupWorkerHandshake({
+      const StartupWorkerHandshake = require('./bootstrap/startupWorkerHandshake');
+      const workerHandshake = new StartupWorkerHandshake({
         laravelUrl: process.env.LARAVEL_INTERNAL_URL,
         secret: process.env.LOCALBROWSER_SECRET,
         workerId: process.env.WORKER_ID,
         logger: console,
       });
 
-      const initialTasks = await handshake.execute();
-      console.log(`[Startup] Worker handshake complete. ${initialTasks.length} task(s) assigned.`);
-
-      // Process initial tasks asynchronously without blocking startup
-      if (initialTasks.length > 0) {
-        setImmediate(async () => {
-          console.log('[Startup] Processing initial tasks...');
-          for (const task of initialTasks) {
-            try {
-              const result = await taskExecutor.execute(task);
-              await resultSubmitter.submit(result);
-              console.log(`[Startup] Task ${task.id} completed successfully`);
-            } catch (error) {
-              console.error(`[Startup] Failed to process task ${task.id}:`, error.message);
-            }
-          }
-          console.log('[Startup] All initial tasks processed');
-        });
-      }
+      await workerHandshake.execute();
+      console.log('[Startup] Worker handshake completed successfully');
     } catch (error) {
       console.error('[Startup] Worker handshake failed:', error.message);
-      // Continue anyway — allow worker to start
     }
-  } else {
-    console.warn(
-      '[Startup] LARAVEL_INTERNAL_URL or LOCALBROWSER_SECRET not configured. Skipping handshake.'
-    );
-  }
-
-  console.log(`[Startup] Server is ready to receive requests on port ${PORT}`);
-});
-
-// Handle server errors
-server.on('error', error => {
-  console.error('[Server] Error:', error.message);
-  if (error.code === 'EADDRINUSE') {
-    console.error(`Port ${PORT} is already in use`);
-    process.exit(1);
   }
 });
 
-// Prevent process from exiting - keep the event loop active
-process.on('uncaughtException', error => {
-  console.error('[Process] Uncaught Exception:', error.message);
-  console.error(error.stack);
-  // Don't exit - allow the server to continue running
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('[Process] Unhandled Rejection at:', promise, 'reason:', reason);
-  // Don't exit - allow the server to continue running
-});
+module.exports = app;
