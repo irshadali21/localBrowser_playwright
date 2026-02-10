@@ -4,15 +4,47 @@
  * All legacy routes have been migrated to the gateway command system
  */
 
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import gatewayRoutes from './gatewayRoutes';
 import {
   createGatewayMiddlewareStack,
   gatewayErrorHandler,
   notFoundHandler,
 } from '../middleware/gatewayMiddleware';
+import { optionalApiKeyAuth } from '../middleware/gatewayAuth';
 
 const router = Router();
+
+// ============================================================================
+// Public endpoints that don't require authentication
+// ============================================================================
+
+/**
+ * Public endpoint check middleware
+ * Skips auth for GET requests to public endpoints
+ */
+function skipAuthForPublicEndpoints(req: Request, _res: Response, next: NextFunction): void {
+  const isGetRequest = req.method === 'GET';
+  const isPublicEndpoint = [
+    '/api/v1/commands',
+    '/api/v1/health',
+    '/api/v1/metrics',
+    '/api/v1/gateway/commands',
+    '/api/v1/gateway/health',
+    '/api/v1/gateway/metrics',
+  ].includes(req.path);
+
+  if (isGetRequest && isPublicEndpoint) {
+    // Skip auth middleware by calling next() directly
+    // The gateway middleware stack will check this flag
+    (req as any).skipGatewayAuth = true;
+  }
+
+  next();
+}
+
+// Apply skip auth check before gateway middleware
+router.use(skipAuthForPublicEndpoints);
 
 // ============================================================================
 // Gateway Middleware Stack

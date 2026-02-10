@@ -66,16 +66,25 @@ const keyHashRegistry: Map<string, ApiKeyMetadata> = new Map();
 
 /**
  * Initialize with default API keys from environment
+ *
+ * Supported environment variables:
+ * - API_KEYS: comma-separated key:secret pairs (key1:secret1,key2:secret2)
+ * - GATEWAY_API_KEY: single API key (alternative format)
+ * - API_KEY: single API key (legacy, same as GATEWAY_API_KEY)
+ * - API_KEY_SECRET: secret used for hashing keys (defaults to 'default-api-key-hash-secret')
  */
 export function initializeApiKeys(): void {
   // Clear existing keys
   apiKeyRegistry.clear();
   keyHashRegistry.clear();
 
-  // Load keys from environment (comma-separated key:secret pairs)
+  // Priority: API_KEYS (comma-separated pairs) > GATEWAY_API_KEY > API_KEY > fallback to dev key
   const keysEnv = process.env.API_KEYS || '';
+  const gatewayKey = process.env.GATEWAY_API_KEY || '';
+  const legacyKey = process.env.API_KEY || '';
 
   if (keysEnv) {
+    // Format: key1:secret1,key2:secret2,key3:secret3
     const keyPairs = keysEnv.split(',').filter(k => k.trim());
 
     keyPairs.forEach((pair, index) => {
@@ -98,8 +107,68 @@ export function initializeApiKeys(): void {
         const keyHash = hashKey(key);
         apiKeyRegistry.set(keyId, metadata);
         keyHashRegistry.set(keyHash, metadata);
+      } else if (key) {
+        // Handle case where no secret is provided (single key format)
+        const keyId = `key_${index + 1}`;
+        const metadata: ApiKeyMetadata = {
+          keyId,
+          name: `API Key ${index + 1}`,
+          clientId: `client_${index + 1}`,
+          scopes: ['gateway:all'],
+          active: true,
+          createdAt: new Date(),
+          expiresAt: null,
+          lastUsedAt: null,
+          rateLimitTier: 'default',
+        };
+
+        const keyHash = hashKey(key);
+        apiKeyRegistry.set(keyId, metadata);
+        keyHashRegistry.set(keyHash, metadata);
       }
     });
+
+    console.log(`[ApiKeyAuth] Initialized ${apiKeyRegistry.size} API keys from API_KEYS`);
+  } else if (gatewayKey) {
+    // Single key format from GATEWAY_API_KEY
+    const keyId = 'gateway_key';
+    const metadata: ApiKeyMetadata = {
+      keyId,
+      name: 'Gateway API Key',
+      clientId: 'gateway_client',
+      scopes: ['gateway:all'],
+      active: true,
+      createdAt: new Date(),
+      expiresAt: null,
+      lastUsedAt: null,
+      rateLimitTier: 'default',
+    };
+
+    const keyHash = hashKey(gatewayKey);
+    apiKeyRegistry.set(keyId, metadata);
+    keyHashRegistry.set(keyHash, metadata);
+
+    console.log('[ApiKeyAuth] Initialized single API key from GATEWAY_API_KEY');
+  } else if (legacyKey) {
+    // Legacy single key format from API_KEY
+    const keyId = 'legacy_key';
+    const metadata: ApiKeyMetadata = {
+      keyId,
+      name: 'Legacy API Key',
+      clientId: 'legacy_client',
+      scopes: ['gateway:all'],
+      active: true,
+      createdAt: new Date(),
+      expiresAt: null,
+      lastUsedAt: null,
+      rateLimitTier: 'default',
+    };
+
+    const keyHash = hashKey(legacyKey);
+    apiKeyRegistry.set(keyId, metadata);
+    keyHashRegistry.set(keyHash, metadata);
+
+    console.log('[ApiKeyAuth] Initialized single API key from API_KEY (legacy)');
   }
 
   // Add a default development key if none exist
@@ -121,10 +190,10 @@ export function initializeApiKeys(): void {
     apiKeyRegistry.set('dev_key', devMetadata);
     keyHashRegistry.set(devHash, devMetadata);
 
-    console.log('[ApiKeyAuth] Default development key added');
+    console.log('[ApiKeyAuth] Default development key added (no valid API keys configured)');
   }
 
-  console.log(`[ApiKeyAuth] Initialized ${apiKeyRegistry.size} API keys`);
+  console.log(`[ApiKeyAuth] Total active API keys: ${apiKeyRegistry.size}`);
 }
 
 /**
@@ -220,6 +289,15 @@ function markKeyUsed(keyId: string): void {
  */
 export function apiKeyAuth(req: ApiKeyRequest, _res: Response, next: NextFunction): void {
   const apiKey = req.headers['x-api-key'] as string | undefined;
+
+  // Check if auth should be skipped for this request (e.g., public endpoints)
+  if ((req as any).skipGatewayAuth) {
+    if (process.env.NODE_ENV === 'development' && process.env.DEBUG_API_KEYS === 'true') {
+      console.log('[ApiKeyAuth] Skipped for public endpoint', { path: req.path });
+    }
+    next();
+    return;
+  }
 
   // Debug logging in development
   if (process.env.NODE_ENV === 'development' && process.env.DEBUG_API_KEYS === 'true') {

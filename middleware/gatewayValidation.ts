@@ -423,6 +423,12 @@ export function validateGatewayRequest(
   _res: Response,
   next: NextFunction
 ): void {
+  // Skip validation for GET requests - they don't have request bodies
+  if (req.method === 'GET') {
+    next();
+    return;
+  }
+
   try {
     // Parse and validate the gateway request
     const parsed = gatewayRequestSchema.parse(req.body);
@@ -469,6 +475,12 @@ export function validateCommandExists(
   _res: Response,
   next: NextFunction
 ): void {
+  // Skip validation for GET requests - they don't have command IDs
+  if (req.method === 'GET') {
+    next();
+    return;
+  }
+
   const commandId = req.commandId;
 
   if (!commandId) {
