@@ -1,0 +1,863 @@
+{
+  "info": {
+    "_postman_id": "localbrowser-gateway-api",
+    "name": "LocalBrowser API Gateway",
+    "description": "Unified API Gateway collection for LocalBrowser Playwright - browser automation, web scraping, chat, job processing, and internal services",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/v1",
+      "type": "string",
+      "description": "Base URL for API gateway"
+    },
+    {
+      "key": "apiKey",
+      "value": "your-api-key-here",
+      "type": "string",
+      "description": "API key for authentication"
+    },
+    {
+      "key": "workerId",
+      "value": "worker-12345",
+      "type": "string",
+      "description": "Worker ID for internal routes"
+    },
+    {
+      "key": "laravelSecret",
+      "value": "your-laravel-secret",
+      "type": "string",
+      "description": "HMAC secret for Laravel communication"
+    },
+    {
+      "key": "hipaaToken",
+      "value": "your-hipaa-token",
+      "type": "string",
+      "description": "HIPAA compliance token"
+    }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{apiKey}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "X-API-Key",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Gateway",
+      "item": [
+        {
+          "name": "Execute Command",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Correlation-ID",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Optional correlation ID for tracing"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"commandId\": \"cmd_{{timestamp}}_{{$guid}}\",\n  \"type\": \"browser.visit\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"url\": \"https://example.com\",\n    \"options\": {\n      \"waitUntil\": \"networkidle\",\n      \"timeout\": 30000,\n      \"returnHtml\": true\n    }\n  },\n  \"metadata\": {\n    \"requestId\": \"req_{{timestamp}}\",\n    \"priority\": 5\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Execute any gateway command"
+          },
+          "response": []
+        },
+        {
+          "name": "List Commands",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/gateway/commands",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway", "commands"]
+            },
+            "description": "List all available commands"
+          },
+          "response": []
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/gateway/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway", "health"]
+            },
+            "description": "Check gateway health status"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/gateway/metrics",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway", "metrics"]
+            },
+            "description": "Get service metrics"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Browser Operations",
+      "item": [
+        {
+          "name": "Execute JavaScript",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"browser.execute\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"code\": \"document.title\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Execute JavaScript code in browser context"
+          },
+          "response": []
+        },
+        {
+          "name": "Google Search",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"browser.search\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"query\": \"Playwright automation\",\n    \"numResults\": 10\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Perform Google search and return results"
+          },
+          "response": []
+        },
+        {
+          "name": "Visit URL",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"browser.visit\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"url\": \"https://example.com\",\n    \"options\": {\n      \"waitUntil\": \"networkidle\",\n      \"timeout\": 30000,\n      \"returnHtml\": true,\n      \"saveToFile\": true,\n      \"handleCloudflare\": false\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Navigate to URL and optionally return/save HTML"
+          },
+          "response": []
+        },
+        {
+          "name": "Scrape Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"browser.scrape\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"url\": \"https://example.com/product/123\",\n    \"vendor\": \"amazon\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Scrape product data from vendor URL"
+          },
+          "response": []
+        },
+        {
+          "name": "Download File",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"browser.download\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"fileId\": \"file_abc123\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Download saved HTML file"
+          },
+          "response": []
+        },
+        {
+          "name": "View File",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"browser.view\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"fileId\": \"file_abc123\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "View saved HTML file metadata and content"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Chat Operations",
+      "item": [
+        {
+          "name": "Prepare Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"chat.prepare\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"model\": \"gemini\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Prepare Gemini chat session"
+          },
+          "response": []
+        },
+        {
+          "name": "Send to Gemini",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"chat.message\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"prompt\": \"Hello, how can you help me today?\",\n    \"sessionId\": \"session_abc123\",\n    \"options\": {\n      \"temperature\": 0.7,\n      \"maxTokens\": 1000\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Send message to Gemini AI"
+          },
+          "response": []
+        },
+        {
+          "name": "Send to ChatGPT",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"chat.message_gpt\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"prompt\": \"Explain quantum computing in simple terms\",\n    \"sessionId\": \"session_gpt_abc\",\n    \"options\": {\n      \"model\": \"gpt-3.5-turbo\",\n      \"temperature\": 0.5,\n      \"maxTokens\": 500\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Send message to ChatGPT"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "IAAPA Operations",
+      "item": [
+        {
+          "name": "Run All Jobs",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"iaapa.run_all\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"batchSize\": 5,\n    \"maxRetries\": 3\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Run all IAAPA scraping jobs"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"iaapa.status\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"jobId\": \"iaapa_job_123\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Get IAAPA job status"
+          },
+          "response": []
+        },
+        {
+          "name": "Download CSV",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"iaapa.download_csv\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"jobId\": \"iaapa_job_123\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Download IAAPA CSV data"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Internal Operations",
+      "item": [
+        {
+          "name": "Ping",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Signature",
+                "value": "{{laravelSignature}}",
+                "type": "text"
+              },
+              {
+                "key": "X-Timestamp",
+                "value": "{{$timestamp}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"internal.ping\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"timestamp\": 1707595200\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Laravel ping notification (requires HMAC auth)"
+          },
+          "response": []
+        },
+        {
+          "name": "Request Work",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Signature",
+                "value": "{{laravelSignature}}",
+                "type": "text"
+              },
+              {
+                "key": "X-Timestamp",
+                "value": "{{$timestamp}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"internal.request_work\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"maxTasks\": 10\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Request pending tasks from Laravel (requires HMAC auth)"
+          },
+          "response": []
+        },
+        {
+          "name": "Submit Result",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Signature",
+                "value": "{{laravelSignature}}",
+                "type": "text"
+              },
+              {
+                "key": "X-Timestamp",
+                "value": "{{$timestamp}}",
+                "type": "text"
+              },
+              {
+                "key": "X-HIPAA-Token",
+                "value": "{{hipaaToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"internal.submit_result\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"taskId\": \"task_abc123\",\n    \"success\": true,\n    \"result\": {\n      \"data\": \"example\"\n    },\n    \"executedAt\": \"2024-02-10T12:00:00Z\",\n    \"durationMs\": 1500\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Submit task result to Laravel (requires HMAC and HIPAA auth)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Queue Stats",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Signature",
+                "value": "{{laravelSignature}}",
+                "type": "text"
+              },
+              {
+                "key": "X-Timestamp",
+                "value": "{{$timestamp}}",
+                "type": "text"
+              },
+              {
+                "key": "X-HIPAA-Token",
+                "value": "{{hipaaToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"internal.queue_stats\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"includeWorkers\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Get queue statistics (requires HMAC and HIPAA auth)"
+          },
+          "response": []
+        },
+        {
+          "name": "Enqueue Tasks",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Signature",
+                "value": "{{laravelSignature}}",
+                "type": "text"
+              },
+              {
+                "key": "X-Timestamp",
+                "value": "{{$timestamp}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"internal.queue_enqueue\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"tasks\": [\n      {\n        \"id\": \"task_001\",\n        \"type\": \"scrape\",\n        \"url\": \"https://example.com/page1\",\n        \"payload\": {\n          \"vendor\": \"amazon\"\n        }\n      },\n      {\n        \"id\": \"task_002\",\n        \"type\": \"scrape\",\n        \"url\": \"https://example.com/page2\",\n        \"payload\": {\n          \"vendor\": \"ebay\"\n        }\n      }\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Enqueue tasks to queue (requires HMAC auth)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Job Operations",
+      "item": [
+        {
+          "name": "Create Job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"job.create\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"jobId\": \"job_custom_123\",\n    \"target\": {\n      \"url\": \"https://example.com/products\",\n      \"metadata\": {\n        \"category\": \"electronics\"\n      },\n      \"lead\": {\n        \"company\": \"Acme Corp\"\n      }\n    },\n    \"parser\": {\n      \"slug\": \"product-parser\",\n      \"mode\": \"batch\",\n      \"definition\": {\n        \"fields\": [\"title\", \"price\", \"description\", \"images\"]\n      }\n    },\n    \"callbackUrl\": \"https://api.example.com/jobs/callback\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Create new scraping job"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Page Operations",
+      "item": [
+        {
+          "name": "List Pages",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"page.list\",\n  \"version\": \"v1\",\n  \"payload\": {}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "List all active browser pages"
+          },
+          "response": []
+        },
+        {
+          "name": "Request Page",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"page.request\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"type\": \"browser\",\n    \"url\": \"https://example.com\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Request new browser page session"
+          },
+          "response": []
+        },
+        {
+          "name": "Close Page",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"page.close\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"pageId\": \"page_abc123\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Close browser page session"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Cron Operations",
+      "item": [
+        {
+          "name": "Cleanup Pages",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"cron.cleanup_pages\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"maxAgeMs\": 3600000,\n    \"maxPages\": 3\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Cleanup inactive browser pages"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Stats",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"cron.stats\",\n  \"version\": \"v1\",\n  \"payload\": {}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Get cron job statistics"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Cleanup Operations",
+      "item": [
+        {
+          "name": "Execute Cleanup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"cleanup.execute\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"maxAge\": 24,\n    \"storageType\": \"local\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Execute file cleanup"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Stats",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"cleanup.stats\",\n  \"version\": \"v1\",\n  \"payload\": {}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Get cleanup statistics"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Error Reporting",
+      "item": [
+        {
+          "name": "Report Error",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"error.report\",\n  \"version\": \"v1\",\n  \"payload\": {\n    \"type\": \"SCRAPE_FAILED\",\n    \"message\": \"Failed to scrape page due to timeout\",\n    \"stack\": \"Error: Timeout at ...\",\n    \"route\": \"/gateway\",\n    \"input\": {\n      \"url\": \"https://example.com\",\n      \"vendor\": \"test\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/gateway",
+              "host": ["{{baseUrl}}"],
+              "path": ["gateway"]
+            },
+            "description": "Report error for logging and notification"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

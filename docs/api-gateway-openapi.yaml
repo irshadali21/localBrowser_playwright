@@ -1,0 +1,381 @@
+openapi: 3.0.3
+info:
+  title: LocalBrowser API Gateway
+  description: |
+    Unified API Gateway for browser automation, web scraping, chat operations, job processing, and internal services.
+    
+    ## Features
+    - **Command-based requests**: Single endpoint with extensible command types
+    - **26 supported commands** across 9 categories
+    - **Authentication**: API Key and HMAC signature support
+    - **Rate limiting**: Configurable per-command rate limits
+    - **HIPAA compliance**: Optional compliance checking for sensitive operations
+    - **Type-safe**: Zod schema validation for all payloads
+    
+    ## Base URL
+    - Production: `https://api.localbrowser.io/v1`
+    - Development: `http://localhost:5000/v1`
+  version: 1.0.0
+  contact:
+    name: LocalBrowser Support
+    email: support@localbrowser.io
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.localbrowser.io/v1
+    description: Production server
+  - url: http://localhost:5000/v1
+    description: Development server
+
+externalDocs:
+  description: Full API Reference Documentation
+  url: docs/UNIFIED_API_GATEWAY.md
+
+tags:
+  - name: Gateway
+    description: Gateway endpoints and commands
+  - name: Browser
+    description: Browser automation operations
+  - name: Chat
+    description: AI chat operations
+  - name: IAAPA
+    description: IAAPA expo data operations
+  - name: Internal
+    description: Internal Laravel backend communication
+  - name: Job
+    description: Job creation and management
+  - name: Page
+    description: Page session management
+  - name: Cron
+    description: Scheduled operations
+  - name: Cleanup
+    description: Storage cleanup operations
+  - name: Error
+    description: Error reporting
+
+paths:
+  /gateway:
+    post:
+      tags:
+        - Gateway
+      summary: Execute Gateway Command
+      description: |
+        Submit a command to the unified API gateway. All commands are sent through this single endpoint.
+        
+        ## Request Structure
+        - `type`: Command type (e.g., "browser.visit", "chat.message")
+        - `payload`: Command-specific payload
+        - `commandId`: Optional client-provided command ID
+        - `version`: API version (default: "v1")
+        - `metadata`: Optional request metadata
+      operationId: executeCommand
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GatewayCommand'
+            examples:
+              browser_visit:
+                summary: Visit URL
+                value:
+                  commandId: cmd_12345_abc
+                  type: browser.visit
+                  version: v1
+                  payload:
+                    url: https://example.com
+                    options:
+                      waitUntil: networkidle
+                      timeout: 30000
+                      returnHtml: true
+              chat_message:
+                summary: Send Chat Message
+                value:
+                  commandId: cmd_12346_def
+                  type: chat.message
+                  version: v1
+                  payload:
+                    prompt: What is Playwright?
+                    sessionId: session_abc123
+                    options:
+                      temperature: 0.7
+                      maxTokens: 1000
+      responses:
+        '200':
+          description: Successful command execution
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewaySuccessResponse'
+        '400':
+          description: Validation error or invalid command
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayErrorResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayErrorResponse'
+        '403':
+          description: Access forbidden (HIPAA compliance)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayErrorResponse'
+
+  /gateway/commands:
+    get:
+      tags:
+        - Gateway
+      summary: List Available Commands
+      description: Returns a list of all available commands with their metadata.
+      operationId: listCommands
+      responses:
+        '200':
+          description: List of available commands
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      commands:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CommandInfo'
+                      total:
+                        type: integer
+                        example: 26
+                      version:
+                        type: string
+                        example: v1
+
+  /gateway/health:
+    get:
+      tags:
+        - Gateway
+      summary: Health Check
+      description: Check if the gateway service is healthy.
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /gateway/metrics:
+    get:
+      tags:
+        - Gateway
+      summary: Get Metrics
+      description: Get basic service metrics.
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Service metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsResponse'
+
+components:
+  schemas:
+    GatewayCommand:
+      type: object
+      required:
+        - type
+        - payload
+      description: Gateway command structure
+      properties:
+        commandId:
+          type: string
+          description: Unique command identifier (auto-generated if not provided)
+          example: cmd_1707595200000_abc123def
+        type:
+          type: string
+          enum:
+            - browser.execute
+            - browser.search
+            - browser.visit
+            - browser.scrape
+            - browser.download
+            - browser.view
+            - chat.prepare
+            - chat.message
+            - chat.message_gpt
+            - iaapa.run_all
+            - iaapa.status
+            - iaapa.download_csv
+            - internal.ping
+            - internal.request_work
+            - internal.submit_result
+            - internal.queue_stats
+            - internal.queue_enqueue
+            - job.create
+            - page.list
+            - page.request
+            - page.close
+            - cron.cleanup_pages
+            - cron.stats
+            - cleanup.execute
+            - cleanup.stats
+            - error.report
+          description: Command type identifier
+          example: browser.visit
+        version:
+          type: string
+          enum:
+            - v1
+          default: v1
+          description: API version
+        payload:
+          type: object
+          description: Command-specific payload
+
+    GatewaySuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+          enum:
+            - true
+        data:
+          type: object
+          description: Command-specific response data
+        metadata:
+          type: object
+          properties:
+            commandId:
+              type: string
+            processedAt:
+              type: string
+              format: date-time
+            durationMs:
+              type: integer
+
+    GatewayErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+          enum:
+            - false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+              example: ERR_VALIDATION
+            message:
+              type: string
+              description: Human-readable error message
+            details:
+              type: object
+              description: Additional error details
+            correlationId:
+              type: string
+              description: Correlation ID for debugging
+            timestamp:
+              type: string
+              format: date-time
+              description: Error timestamp
+
+    CommandInfo:
+      type: object
+      properties:
+        type:
+          type: string
+          example: browser.visit
+        description:
+          type: string
+        version:
+          type: string
+        deprecated:
+          type: boolean
+        rateLimit:
+          type: object
+          nullable: true
+          properties:
+            windowMs:
+              type: integer
+            maxRequests:
+              type: integer
+
+    HealthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+              example: healthy
+            timestamp:
+              type: string
+              format: date-time
+            uptime:
+              type: number
+
+    MetricsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            uptime:
+              type: number
+            requests:
+              type: integer
+            errors:
+              type: integer
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key authentication for public endpoints
+    HmacAuth:
+      type: apiKey
+      in: header
+      name: X-Signature
+      description: HMAC-SHA256 signature for internal Laravel communication
+    HipaaToken:
+      type: apiKey
+      in: header
+      name: X-HIPAA-Token
+      description: HIPAA compliance token for sensitive operations
+
+security:
+  - ApiKeyAuth: []
