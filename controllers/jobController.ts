@@ -4,26 +4,7 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import { enqueueJob } from '../services/jobQueue';
-
-/**
- * Target configuration
- */
-interface JobTarget {
-  url: string;
-  metadata?: Record<string, unknown>;
-  lead?: Record<string, unknown>;
-}
-
-/**
- * Parser configuration
- */
-interface JobParser {
-  id?: string;
-  slug?: string;
-  mode: 'single' | 'batch' | 'vendor' | 'script';
-  definition?: Record<string, unknown>;
-}
+import { enqueueJob, type Job, type JobTarget, type JobParser } from '../services/jobQueue';
 
 /**
  * Job creation payload
@@ -77,19 +58,18 @@ export const create = async (
       return;
     }
 
-    const job = {
+    const job: Job = {
       jobId: providedJobId || crypto.randomUUID(),
       target: {
         url: target.url,
-        metadata: target.metadata || {},
+        metadata: target.metadata,
+        lead: target.lead,
       },
       parser: {
-        id: parser.id,
         slug: parser.slug,
         mode: parser.mode,
-        definition: parser.definition || {},
+        definition: parser.definition,
       },
-      lead: target.lead || {},
       callbackUrl,
     };
 

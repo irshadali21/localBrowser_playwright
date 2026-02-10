@@ -5,15 +5,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import StorageFactory from '../utils/storage/StorageFactory';
 import { logErrorToDB } from '../utils/errorLogger';
-
-/**
- * Storage interface for type checking
- */
-interface StorageInterface {
-  cleanup(maxAge: number): Promise<{ deleted: number; freed: number }>;
-  getStats(): Promise<{ totalFiles: number; totalSize: number }>;
-  getType(): string;
-}
+import type { StorageAdapter, CleanupResult, StorageStats } from '../utils/storage/StorageAdapter';
 
 /**
  * Cleanup old files
@@ -21,18 +13,20 @@ interface StorageInterface {
  */
 export const cleanup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const storage = StorageFactory.createStorage() as unknown as StorageInterface;
-    const maxAge = parseInt(req.query.maxAge as string) || parseInt(process.env.CLEANUP_MAX_AGE_HOURS || '24');
-    
-    if (!storage) {
-      throw new Error('Storage not initialized');
+    const storage = StorageFactory.createStorage() as StorageAdapter;
+    const maxAge =
+      parseInt(req.query.maxAge as string) || parseInt(process.env.CLEANUP_MAX_AGE_HOURS || '24');
+
+    if (!storage.cleanup) {
+      throw new Error('Cleanup not supported for this storage type');
     }
-    
+
     const result = await storage.cleanup(maxAge);
-    
+
     res.json({
-      ...result,
-      storageType: storage.getType()
+      deleted: result.deleted,
+      freedBytes: result.freedBytes,
+      storageType: storage.getType(),
     });
   } catch (err) {
     const error = err as Error;
@@ -42,7 +36,7 @@ export const cleanup = async (req: Request, res: Response, next: NextFunction): 
       message: error.message,
       stack: error.stack,
       route: '/cleanup',
-      input: req.query
+      input: req.query,
     });
     next(error);
   }
@@ -54,17 +48,14 @@ export const cleanup = async (req: Request, res: Response, next: NextFunction): 
  */
 export const stats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const storage = StorageFactory.createStorage() as unknown as StorageInterface;
-    
-    if (!storage) {
-      throw new Error('Storage not initialized');
-    }
-    
+    const storage = StorageFactory.createStorage() as StorageAdapter;
+
     const stats = await storage.getStats();
-    
+
     res.json({
-      ...stats,
-      storageType: storage.getType()
+      fileCount: stats.fileCount,
+      totalSizeBytes: stats.totalSizeBytes,
+      storageType: storage.getType(),
     });
   } catch (err) {
     const error = err as Error;
@@ -74,7 +65,7 @@ export const stats = async (req: Request, res: Response, next: NextFunction): Pr
       message: error.message,
       stack: error.stack,
       route: '/cleanup/stats',
-      input: req.query
+      input: req.query,
     });
     next(error);
   }

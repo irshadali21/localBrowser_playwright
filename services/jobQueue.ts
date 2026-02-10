@@ -3,12 +3,12 @@ import axios, { AxiosError } from 'axios';
 import * as crypto from 'crypto';
 
 // Job types
-interface JobTarget {
+export interface JobTarget {
   url: string;
   [key: string]: unknown;
 }
 
-interface JobParserDefinition {
+export interface JobParserDefinition {
   vendor?: string;
   vendorSlug?: string;
   slug?: string;
@@ -16,14 +16,14 @@ interface JobParserDefinition {
   [key: string]: unknown;
 }
 
-interface JobParser {
+export interface JobParser {
   slug: string;
   mode: 'single' | 'batch' | 'vendor' | 'script';
   definition?: JobParserDefinition;
   [key: string]: unknown;
 }
 
-interface Job {
+export interface Job {
   jobId: string;
   target: JobTarget;
   parser: JobParser;
@@ -31,7 +31,7 @@ interface Job {
   [key: string]: unknown;
 }
 
-interface JobResult {
+export interface JobResult {
   jobId: string;
   status: 'succeeded' | 'failed';
   startedAt: string;
@@ -136,14 +136,20 @@ async function processQueue(): Promise<void> {
 
   processing = true;
 
-  while (queue.length) {
-    const job = queue.shift();
-    if (job) {
-      await runJob(job);
+  try {
+    while (queue.length) {
+      const job = queue.shift();
+      if (job) {
+        try {
+          await runJob(job);
+        } catch (error) {
+          console.error(`Job ${job.jobId} failed:`, error);
+        }
+      }
     }
+  } finally {
+    processing = false;
   }
-
-  processing = false;
 }
 
 async function runJob(job: Job): Promise<void> {
@@ -245,9 +251,6 @@ async function dispatchWebhook(job: Job, payload: WebhookPayload): Promise<void>
     });
   }
 }
-
-// Re-export types for consumers
-export type { Job, JobTarget, JobParser, JobParserDefinition, JobResult };
 
 export default {
   enqueueJob,
