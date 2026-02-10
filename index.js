@@ -10,6 +10,19 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 // ============================================================================
+// Reject GET requests to /api/v1/gateway immediately
+// ============================================================================
+app.get('/api/v1/gateway', (req, res) => {
+  res.status(405).json({
+    success: false,
+    error: {
+      code: 'ERR_METHOD_NOT_ALLOWED',
+      message: 'Endpoint only accepts POST requests',
+    },
+  });
+});
+
+// ============================================================================
 // Gateway Middleware Initialization
 // ============================================================================
 

@@ -16,6 +16,20 @@ import { optionalApiKeyAuth } from '../middleware/gatewayAuth';
 const router = Router();
 
 // ============================================================================
+// Reject GET requests to /api/v1/gateway immediately (before any middleware)
+// ============================================================================
+
+router.get('/api/v1/gateway', (req, res) => {
+  res.status(405).json({
+    success: false,
+    error: {
+      code: 'ERR_METHOD_NOT_ALLOWED',
+      message: 'Endpoint only accepts POST requests',
+    },
+  });
+});
+
+// ============================================================================
 // Public endpoints that don't require authentication
 // ============================================================================
 
@@ -32,6 +46,9 @@ function skipAuthForPublicEndpoints(req: Request, _res: Response, next: NextFunc
     '/api/v1/gateway/commands',
     '/api/v1/gateway/health',
     '/api/v1/gateway/metrics',
+    '/gateway/commands',
+    '/gateway/health',
+    '/gateway/metrics',
   ].includes(req.path);
 
   if (isGetRequest && isPublicEndpoint) {
@@ -50,9 +67,16 @@ router.use(skipAuthForPublicEndpoints);
 // Gateway Middleware Stack
 // ============================================================================
 
-// Apply gateway middleware to all /api/v1 routes
+// Apply gateway middleware to all /api/v1 routes except the GET /api/v1/gateway we already handled
 router.use(
   '/api/v1',
+  (req: Request, res: Response, next: NextFunction) => {
+    if (req.method === 'GET' && req.path === '/gateway') {
+      // Already handled by our specific route
+      return;
+    }
+    next();
+  },
   createGatewayMiddlewareStack({
     skipAuth: false,
     skipRateLimit: false,

@@ -291,7 +291,10 @@ export function apiKeyAuth(req: ApiKeyRequest, _res: Response, next: NextFunctio
   const apiKey = req.headers['x-api-key'] as string | undefined;
 
   // Check if auth should be skipped for this request (e.g., public endpoints)
-  if ((req as any).skipGatewayAuth) {
+  if (
+    (req as any).skipGatewayAuth ||
+    (req.method === 'GET' && req.originalUrl === '/api/v1/gateway')
+  ) {
     if (process.env.NODE_ENV === 'development' && process.env.DEBUG_API_KEYS === 'true') {
       console.log('[ApiKeyAuth] Skipped for public endpoint', { path: req.path });
     }

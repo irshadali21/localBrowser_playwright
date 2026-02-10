@@ -10,6 +10,20 @@ import { optionalApiKeyAuth } from '../middleware/gatewayAuth';
 const router = Router();
 
 /**
+ * GET /api/v1/gateway
+ * Reject GET requests with 405 Method Not Allowed
+ */
+router.get('/', (req, res) => {
+  res.status(405).json({
+    success: false,
+    error: {
+      code: 'ERR_METHOD_NOT_ALLOWED',
+      message: 'Endpoint only accepts POST requests',
+    },
+  });
+});
+
+/**
  * POST /api/v1/gateway
  * Main gateway endpoint for executing commands
  * Requires API key authentication
