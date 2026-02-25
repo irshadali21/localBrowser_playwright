@@ -1,5 +1,6 @@
 // helpers/chatManager.js
 const { requestPage, closePage } = require('../utils/pageManager');
+const { gotoWithRetry } = require('../helpers/browserHelper');
 
 let chatPageId = null;
 let chatPage = null;
@@ -37,10 +38,18 @@ async function sendChat(prompt) {
     chatPageId = id;
   }
 
+  // Capture current message count before sending
+  const messageLocator = chatPage.locator('message-content');
+  const initialCount = await messageLocator.count();
+
   await chatPage.locator('rich-textarea').fill(prompt);
   await chatPage.keyboard.press('Enter');
 
-  await chatPage.waitForTimeout(10000);
+  // Wait for new message to appear (count increases)
+  await messageLocator.nth(initialCount).waitFor({ timeout: 30000 });
+
+  // Small stabilization delay to ensure response is complete
+  await chatPage.waitForTimeout(1000);
 
   const response = await chatPage.evaluate(() => {
     const responses = Array.from(document.querySelectorAll('message-content'));
@@ -62,7 +71,7 @@ async function sendChatGPT(prompt) {
       isChatGPTClosed = true;
     });
 
-    await chatGPTPage.goto('https://chatgpt.com/', { waitUntil: 'networkidle' });
+    await gotoWithRetry(chatGPTPage, 'https://chatgpt.com/', { waitUntil: 'networkidle' });
     await chatGPTPage.waitForTimeout(2000);
   }
 
@@ -80,7 +89,7 @@ async function sendChatGPT(prompt) {
   const isLoggedOut = await chatGPTPage.locator('button[data-testid="login-button"]').count() > 0;
   if (isLoggedOut) {
     console.log('[ChatGPT] Not logged in');
-    return 'Please login to ChatGPT manually.';
+    return { status: 'logged_out', code: 401, message: 'Please login to ChatGPT manually.' };
   }
 
   // 3. Type the message

@@ -30,16 +30,19 @@ describe('Result Submitter Service', () => {
       process.env.LOCALBROWSER_SECRET = 'env_secret';
       process.env.WORKER_ID = 'env-worker';
 
-      const envSubmitter = new ResultSubmitter();
+      let envSubmitter;
+      try {
+        envSubmitter = new ResultSubmitter();
 
-      assert.strictEqual(envSubmitter.laravelUrl, 'http://test:8000');
-      assert.strictEqual(envSubmitter.secret, 'env_secret');
-      assert.strictEqual(envSubmitter.workerId, 'env-worker');
-
-      // Cleanup
-      delete process.env.LARAVEL_INTERNAL_URL;
-      delete process.env.LOCALBROWSER_SECRET;
-      delete process.env.WORKER_ID;
+        assert.strictEqual(envSubmitter.laravelUrl, 'http://test:8000');
+        assert.strictEqual(envSubmitter.secret, 'env_secret');
+        assert.strictEqual(envSubmitter.workerId, 'env-worker');
+      } finally {
+        // Cleanup to prevent cross-test leakage
+        delete process.env.LARAVEL_INTERNAL_URL;
+        delete process.env.LOCALBROWSER_SECRET;
+        delete process.env.WORKER_ID;
+      }
     });
 
     it('should throw if LARAVEL_INTERNAL_URL is missing', () => {

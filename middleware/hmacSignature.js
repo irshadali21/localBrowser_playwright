@@ -60,8 +60,36 @@ function verifySignature(req, res, next) {
     .update(timestamp.toString())
     .digest('hex');
 
-  // Simple string comparison (signatures should always be same length hex strings)
-  const signaturesMatch = expectedSignature === signature;
+  // Convert signatures to Buffers for timing-safe comparison
+  let expectedBuffer, signatureBuffer;
+  try {
+    expectedBuffer = Buffer.from(expectedSignature, 'hex');
+    signatureBuffer = Buffer.from(signature, 'hex');
+  } catch (err) {
+    // Invalid hex characters in signature
+    if (DEBUG_MODE) {
+      console.warn('[HMAC] Invalid signature format', {
+        path: req.path,
+        error: err.message,
+      });
+    }
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
+
+  // Reject early if lengths differ (both should be 32 bytes for SHA256)
+  if (expectedBuffer.length !== signatureBuffer.length) {
+    if (DEBUG_MODE) {
+      console.warn('[HMAC] Signature length mismatch', {
+        path: req.path,
+        expectedLength: expectedBuffer.length,
+        actualLength: signatureBuffer.length,
+      });
+    }
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
+
+  // Timing-safe comparison to prevent timing attacks
+  const signaturesMatch = crypto.timingSafeEqual(expectedBuffer, signatureBuffer);
 
   if (DEBUG_MODE) {
     console.log('[HMAC] Signature verification', {

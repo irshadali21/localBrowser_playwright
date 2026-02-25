@@ -15,7 +15,6 @@ const withErrorHandler = (controllerName, route, type) => (handler) => async (re
   } catch (err) {
     console.error(`[${controllerName}] ${type.toLowerCase().replace('_', ' ')} error:`, err);
     logErrorToDB({ type, message: err.message, stack: err.stack, route, input: req.body || req.query || req.params });
-    if (err.message.includes('not found')) return res.status(404).json({ error: err.message });
     next(err);
   }
 };
@@ -59,10 +58,16 @@ exports.download = withErrorHandler('BrowserController', '/browser/download', 'D
   if (!fileId || typeof fileId !== 'string') {
     return res.status(400).json({ error: 'Invalid file ID' });
   }
-  const fileData = await getHtmlFile(fileId);
-  res.setHeader('Content-Type', 'text/html');
-  res.setHeader('Content-Disposition', `attachment; filename="${fileData.fileName}"`);
-  res.send(fileData.html);
+  try {
+    const fileData = await getHtmlFile(fileId);
+    res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileData.fileName}"`);
+    res.send(fileData.html);
+  } catch (err) {
+    err.status = 404;
+    logErrorToDB(err);
+    next(err);
+  }
 });
 
 // GET /browser/view/:fileId
@@ -71,14 +76,20 @@ exports.view = withErrorHandler('BrowserController', '/browser/view', 'VIEW_FAIL
   if (!fileId || typeof fileId !== 'string') {
     return res.status(400).json({ error: 'Invalid file ID' });
   }
-  const fileData = await getHtmlFile(fileId);
-  res.json({
-    fileId: fileData.fileId,
-    fileName: fileData.fileName,
-    html: fileData.html,
-    fileSizeBytes: fileData.fileSizeBytes,
-    createdAt: fileData.createdAt
-  });
+  try {
+    const fileData = await getHtmlFile(fileId);
+    res.json({
+      fileId: fileData.fileId,
+      fileName: fileData.fileName,
+      html: fileData.html,
+      fileSizeBytes: fileData.fileSizeBytes,
+      createdAt: fileData.createdAt
+    });
+  } catch (err) {
+    err.status = 404;
+    logErrorToDB(err);
+    next(err);
+  }
 });
 
 // GET /browser/scrape?url=...&vendor=...

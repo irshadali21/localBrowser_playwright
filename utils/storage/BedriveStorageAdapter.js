@@ -12,6 +12,8 @@ class BedriveStorageAdapter extends StorageAdapter {
     
     this.client = axios.create({
       baseURL: this.baseUrl,
+      timeout: 30000,
+      timeoutErrorMessage: 'BeDrive request timed out',
       headers: {
         'Authorization': `Bearer ${this.apiKey}`,
         'Accept': 'application/json'
@@ -171,13 +173,10 @@ class BedriveStorageAdapter extends StorageAdapter {
 
       console.log(`[BeDrive] Found file: ${matchingFile.name} (ID: ${matchingFile.id})`);
 
-      // Download file content
+      // Download file content using this.client to inherit timeout config
       // BeDrive API: GET /file-entries/{entryId}/download (redirect to actual file URL)
       const downloadUrl = `${this.baseUrl}/file-entries/${matchingFile.id}/download`;
-      const downloadResponse = await axios.get(downloadUrl, {
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`
-        },
+      const downloadResponse = await this.client.get(downloadUrl, {
         responseType: 'text'
       });
 

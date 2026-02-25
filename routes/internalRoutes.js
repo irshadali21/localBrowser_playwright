@@ -7,6 +7,7 @@ const ResultSubmitter = require('../services/resultSubmitter');
 const TaskQueueService = require('../services/taskQueueService');
 const browserHelper = require('../helpers/browserHelper');
 const hmacSignature = require('../middleware/hmacSignature');
+const { logErrorToDB } = require('../utils/errorLogger');
 
 // Initialize dependencies
 const taskExecutor = new TaskExecutor(browserHelper);
@@ -54,6 +55,17 @@ router.get('/queue/stats', async (req, res) => {
       timestamp: Math.floor(Date.now() / 1000),
     });
   } catch (error) {
+    try {
+      await logErrorToDB({
+        type: 'QUEUE_STATS_FAILED',
+        message: error.message,
+        stack: error.stack,
+        route: req.originalUrl,
+        input: { params: req.params, query: req.query, body: req.body },
+      });
+    } catch (logErr) {
+      console.error('[internalRoutes] Failed to log error:', logErr.message);
+    }
     res.status(500).json({ error: error.message });
   }
 });
@@ -78,6 +90,17 @@ router.post('/queue/enqueue', async (req, res) => {
       timestamp: Math.floor(Date.now() / 1000),
     });
   } catch (error) {
+    try {
+      await logErrorToDB({
+        type: 'QUEUE_ENQUEUE_FAILED',
+        message: error.message,
+        stack: error.stack,
+        route: req.originalUrl,
+        input: { params: req.params, query: req.query, body: req.body },
+      });
+    } catch (logErr) {
+      console.error('[internalRoutes] Failed to log error:', logErr.message);
+    }
     res.status(500).json({ error: error.message });
   }
 });
@@ -95,6 +118,17 @@ router.post('/queue/cleanup', async (req, res) => {
       timestamp: Math.floor(Date.now() / 1000),
     });
   } catch (error) {
+    try {
+      await logErrorToDB({
+        type: 'QUEUE_CLEANUP_FAILED',
+        message: error.message,
+        stack: error.stack,
+        route: req.originalUrl,
+        input: { params: req.params, query: req.query, body: req.body },
+      });
+    } catch (logErr) {
+      console.error('[internalRoutes] Failed to log error:', logErr.message);
+    }
     res.status(500).json({ error: error.message });
   }
 });
@@ -112,6 +146,17 @@ router.post('/queue/reset-stuck', async (req, res) => {
       timestamp: Math.floor(Date.now() / 1000),
     });
   } catch (error) {
+    try {
+      await logErrorToDB({
+        type: 'QUEUE_RESET_STUCK_FAILED',
+        message: error.message,
+        stack: error.stack,
+        route: req.originalUrl,
+        input: { params: req.params, query: req.query, body: req.body },
+      });
+    } catch (logErr) {
+      console.error('[internalRoutes] Failed to log error:', logErr.message);
+    }
     res.status(500).json({ error: error.message });
   }
 });

@@ -123,7 +123,9 @@ async function cleanupPages(req, res, next) {
       }
     }
 
-    result.action = 'cleanup_attempted';
+    if (result.action !== 'cleanup_completed') {
+      result.action = 'cleanup_attempted';
+    }
     result.finalPageCount = context.pages().length;
     res.json(result);
   } catch (err) {

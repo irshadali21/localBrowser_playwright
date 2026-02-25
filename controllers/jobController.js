@@ -22,6 +22,12 @@ exports.create = async (req, res, next) => {
       return res.status(400).json({ error: 'Missing parser definition' });
     }
 
+    const validModes = ['vendor', 'script'];
+    if (!validModes.includes(parser.mode)) {
+      console.warn(`[JobController] Invalid request: parser.mode must be "vendor" or "script", got: "${parser.mode}"`);
+      return res.status(400).json({ error: 'Invalid parser.mode: must be "vendor" or "script"' });
+    }
+
     if (!callbackUrl) {
       console.warn('[JobController] Invalid request: missing callbackUrl');
       return res.status(400).json({ error: 'Missing callbackUrl' });
