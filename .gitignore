@@ -2,4 +2,3 @@ node_modules/
 profile-data/
 logs/
 .env
-dist/
