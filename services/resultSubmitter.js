@@ -141,9 +141,20 @@ class ResultSubmitter {
           }
 
           if (res.statusCode >= 200 && res.statusCode < 300) {
+            let parsedBody = null;
+            if (data) {
+              try {
+                parsedBody = JSON.parse(data);
+              } catch (parseError) {
+                this.logger.error(`[ResultSubmitter] Failed to parse JSON response: ${parseError.message}`);
+                this.logger.error(`[ResultSubmitter] Raw response (status ${res.statusCode}): ${data.substring(0, 500)}`);
+                reject(new Error(`Failed to parse JSON response from Laravel (status ${res.statusCode}): ${parseError.message}. Raw data: ${data}`));
+                return;
+              }
+            }
             resolve({
               statusCode: res.statusCode,
-              body: data ? JSON.parse(data) : null,
+              body: parsedBody,
             });
           } else {
             reject(new Error(`Laravel returned ${res.statusCode}: ${data}`));

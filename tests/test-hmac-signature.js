@@ -29,6 +29,7 @@ describe('HMAC Signature Middleware', () => {
       };
 
       const res = {
+        locals: {},
         set: () => {},
         status: function() { return this; },
         json: function(data) { return data; },
@@ -62,6 +63,7 @@ describe('HMAC Signature Middleware', () => {
       };
 
       const res = {
+        locals: {},
         set: () => {},
         status: function() { return this; },
         json: function(data) { return data; },
@@ -105,7 +107,7 @@ describe('HMAC Signature Middleware', () => {
 
       let nextCalled = false;
       const next = () => {
-        nextCalled = false;
+        nextCalled = true;
       };
 
       hmacSignature(req, res, next);
@@ -142,7 +144,7 @@ describe('HMAC Signature Middleware', () => {
 
       let nextCalled = false;
       const next = () => {
-        nextCalled = false;
+        nextCalled = true;
       };
 
       hmacSignature(req, res, next);
@@ -175,7 +177,7 @@ describe('HMAC Signature Middleware', () => {
 
       let nextCalled = false;
       const next = () => {
-        nextCalled = false;
+        nextCalled = true;
       };
 
       hmacSignature(req, res, next);
@@ -208,7 +210,7 @@ describe('HMAC Signature Middleware', () => {
 
       let nextCalled = false;
       const next = () => {
-        nextCalled = false;
+        nextCalled = true;
       };
 
       hmacSignature(req, res, next);

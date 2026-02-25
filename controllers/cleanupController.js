@@ -16,7 +16,9 @@ const withErrorHandler = (route, type) => (handler) => async (req, res, next) =>
 // POST /cleanup?maxAge=24
 exports.cleanup = withErrorHandler('/cleanup', 'CLEANUP_FAILED')(async (req, res) => {
   const storage = StorageFactory.createStorage();
-  const maxAge = parseInt(req.query.maxAge) || process.env.CLEANUP_MAX_AGE_HOURS || 24;
+  const parsedMaxAge = Number(req.query.maxAge);
+  const parsedEnvMaxAge = Number(process.env.CLEANUP_MAX_AGE_HOURS);
+  const maxAge = isNaN(parsedMaxAge) && isNaN(parsedEnvMaxAge) ? 24 : (isNaN(parsedMaxAge) ? parsedEnvMaxAge : parsedMaxAge);
   const result = await storage.cleanup(maxAge);
   res.json({ ...result, storageType: storage.getType() });
 });

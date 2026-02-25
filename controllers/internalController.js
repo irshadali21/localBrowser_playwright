@@ -73,6 +73,7 @@ class InternalController {
 
     if (!process.env.LARAVEL_INTERNAL_URL || !process.env.LOCALBROWSER_SECRET) {
       this.logger.warn('Laravel integration not configured');
+      this.isFetchingTasks = false;
       return;
     }
 

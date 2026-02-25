@@ -7,8 +7,10 @@ const withErrorHandler = (controllerName, route, type) => (handler) => async (re
   try {
     await handler(req, res);
   } catch (err) {
+    // Support dynamic route (function) or static string
+    const resolvedRoute = typeof route === 'function' ? route(req) : route;
     console.error(`[${controllerName}] ${type.toLowerCase().replace('_', ' ')} error:`, err);
-    logErrorToDB({ type, message: err.message, stack: err.stack, route, input: req.body });
+    logErrorToDB({ type, message: err.message, stack: err.stack, route: resolvedRoute, input: req.body });
     next(err);
   }
 };
@@ -26,7 +28,13 @@ exports.message = withErrorHandler('ChatController', '/chat/message', 'CHAT_SEND
 });
 
 // Send message to ChatGPT
-exports.messageGPT = withErrorHandler('ChatGPTController', '/chatgpt/message', 'CHATGPT_SEND_FAILED')(async (req, res) => {
+exports.messageGPT = withErrorHandler('ChatGPTController', (req) => req.baseUrl + req.path, 'CHATGPT_SEND_FAILED')(async (req, res) => {
   const reply = await sendChatGPT(req.body.prompt);
+  
+  // Handle structured status responses
+  if (reply && typeof reply === 'object' && reply.status) {
+    return res.status(reply.code || 401).json(reply);
+  }
+  
   res.json({ reply });
 });

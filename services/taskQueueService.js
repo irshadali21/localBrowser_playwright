@@ -60,6 +60,10 @@ class TaskQueueService {
 
       const insertMany = db.transaction((tasksToInsert) => {
         for (const task of tasksToInsert) {
+          // Validate task before insertion (same validation as enqueueTask)
+          if (!task.type || !task.url) {
+            throw new Error('Task must have type and url');
+          }
           const taskId = task.id || crypto.randomBytes(16).toString('hex');
           stmt.run(taskId, task.type, task.url, task.payload ? JSON.stringify(task.payload) : null);
           taskIds.push(taskId);
@@ -174,13 +178,13 @@ class TaskQueueService {
    * @returns {Object} Queue statistics
    */
   async getStatistics() {
+    const stats = { total: 0, pending: 0, processing: 0, completed: 0, failed: 0 };
     try {
       const stmt = db.prepare(`
         SELECT status, COUNT(*) as count FROM browser_tasks GROUP BY status
       `);
 
       const rows = stmt.all();
-      const stats = { total: 0, pending: 0, processing: 0, completed: 0, failed: 0 };
       rows.forEach(row => { stats[row.status] = row.count; stats.total += row.count; });
       return stats;
     } catch (error) {

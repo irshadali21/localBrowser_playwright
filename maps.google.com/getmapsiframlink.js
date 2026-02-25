@@ -11,8 +11,13 @@ const NAVIGATION_TIMEOUT = 60000;
 const HEADLESS = process.env.HEADLESS !== 'false';
 
 function parseCSV(csvPath) {
-  const content = fs.readFileSync(csvPath, 'utf-8');
-  const lines = content.split('\n').filter(line => line.trim());
+  let content = fs.readFileSync(csvPath, 'utf-8');
+  // Strip BOM (U+FEFF) from the start if present
+  if (content.charCodeAt(0) === 0xFEFF) {
+    content = content.slice(1);
+  }
+  // Split lines using CRLF-safe regex
+  const lines = content.split(/\r?\n/).filter(line => line.trim());
   
   if (lines.length < 2) {
     throw new Error('CSV file is empty or has no data rows');
@@ -58,18 +63,25 @@ function parseCSVLine(line) {
     }
   }
   
-  result.push(current);
-  return result;
+  result.push(current.replace(/\r$/, ''));
+  return result.map(field => field.replace(/\r$/, ''));
 }
 
 function writeCSV(csvPath, businesses) {
+  // Guard empty input
+  if (!Array.isArray(businesses) || businesses.length === 0) {
+    fs.writeFileSync(csvPath, '', 'utf-8');
+    return;
+  }
+  
   const headers = Object.keys(businesses[0]);
   const lines = [];
   lines.push(headers.map(h => `"${h}"`).join(','));
   
   for (const business of businesses) {
     const values = headers.map(h => {
-      const val = business[h] || '';
+      // Coerce value to string before checking for commas/quotes
+      const val = String(business[h] || '');
       if (val.includes('"') || val.includes(',')) {
         return `"${val.replace(/"/g, '""')}"`;
       }
@@ -236,9 +248,6 @@ async function getEmbedLinkViaShareDialog(page) {
     if (iframeUrl && iframeUrl.includes('google.com/maps/embed')) {
       return iframeUrl;
     }
-    
-    console.log('  Iframe not in expected location');
-    return null;
     
     if (iframeUrl && iframeUrl.includes('maps.google.com/embed')) {
       console.log(`  Found iframe URL: ${iframeUrl.substring(0, 80)}...`);
@@ -512,25 +521,22 @@ async function main() {
   
   console.log('Launching browser...');
   let browser;
-  let context;
   let page;
-  
+  const userDataDir = path.join(__dirname, '.chromium-data');
+
   try {
-    browser = await chromium.launch({
-      headless: HEADLESS,
-      args: ['--disable-blink-features=AutomationControlled']
-    });
-    context = await browser.newContext({
+    const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.7632.26 Safari/537.36';
+    browser = await chromium.launchPersistentContext(userDataDir, {
+      userAgent: userAgent,
       viewport: { width: 1280, height: 800 },
       locale: 'en-US',
       timezoneId: 'America/New_York',
       permissions: ['geolocation', 'notifications'],
-      ignoreHTTPSErrors: true
+      ignoreHTTPSErrors: true,
+      headless: HEADLESS,
+      args: ['--disable-blink-features=AutomationControlled']
     });
-    page = await context.newPage();
-    
-    const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.7632.26 Safari/537.36';
-    await page.setUserAgent?.(userAgent);
+    page = await browser.newPage();
     
     await page.addInitScript(() => {
       Object.defineProperty(navigator, 'webdriver', {
@@ -549,7 +555,7 @@ async function main() {
         runtime: {},
       };
       
-      const originalQuery = window.navigator.permissions.query;
+      const originalQuery = window.navigator.permissions.query.bind(window.navigator.permissions);
       window.navigator.permissions.query = (parameters) => (
         parameters.name === 'notifications' ?
           Promise.resolve({ state: Notification.permission }) :

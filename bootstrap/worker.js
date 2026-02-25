@@ -81,17 +81,21 @@ async function startWorker() {
       log.info({ taskCount: initialTasks.length }, 'Handshake complete');
 
       if (initialTasks.length > 0) {
-        setImmediate(async () => {
-          log.info('Processing initial tasks');
-          for (const task of initialTasks) {
-            try {
-              const result = await taskExecutor.execute(task);
-              await resultSubmitter?.submit(result);
-              log.info({ taskId: task.id }, 'Task completed');
-            } catch (error) {
-              log.error({ taskId: task.id, error: error.message }, 'Task failed');
+        setImmediate(() => {
+          (async () => {
+            log.info('Processing initial tasks');
+            for (const task of initialTasks) {
+              try {
+                const result = await taskExecutor.execute(task);
+                await resultSubmitter?.submit(result);
+                log.info({ taskId: task.id }, 'Task completed');
+              } catch (error) {
+                log.error({ taskId: task.id, error: error.message }, 'Task failed');
+              }
             }
-          }
+          })().catch((error) => {
+            log.error({ error }, 'Unexpected error processing initial tasks');
+          });
         });
       }
     } catch (error) {
