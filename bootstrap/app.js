@@ -21,6 +21,11 @@ function createApp() {
 
   // API Key Auth Middleware
   app.use((req, res, next) => {
+    // First check if API_KEY is configured - fail closed if not set
+    if (!process.env.API_KEY) {
+      return res.status(500).json({ error: 'Internal Server Error - API_KEY not configured' });
+    }
+    // Require x-api-key header and validate it exactly equals process.env.API_KEY
     if (req.headers['x-api-key'] !== process.env.API_KEY) {
       return res.status(401).json({ error: 'Unauthorized - Invalid API Key' });
     }
